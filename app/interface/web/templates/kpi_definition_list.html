@@ -1,0 +1,319 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="workspace">
+  <section class="panel">
+    <h2>Create or Update Metric Definition</h2>
+    <p class="small">Metric ID is auto-generated. Slug is derived from metric name. Name must be unique.</p>
+    <p class="small"><strong>Required</strong> fields are labeled with "(Required)".</p>
+
+    <div class="form-section">
+      <h3>Find Existing Metric to Update</h3>
+      <form method="get" class="form-grid" style="padding: 0;" novalidate>
+        <div class="form-subgrid">
+          <div class="full-row">
+            <label for="definition_lookup">Search by Metric Name, Metric ID, or Metric Slug</label>
+            <input id="definition_lookup" type="text" list="definition_lookup_options" placeholder="Start typing metric name, ID, or slug">
+            <datalist id="definition_lookup_options"></datalist>
+            <div id="definition_lookup_status" class="small">Type at least 2 characters to search, then load the metric into the form for updating.</div>
+          </div>
+          <input id="edit_slug" name="edit_slug" type="hidden" value="{{ form.current_kpi_slug.data or '' }}">
+          <input id="edit_version" name="edit_version" type="hidden" value="{{ form.current_kpi_version.data or '' }}">
+          <div class="form-actions full-row">
+            <button type="submit" class="button-secondary">Load Metric into Form</button>
+            {% if is_edit %}
+            <a href="{{ url_for('kpi_definitions.list_definitions') }}" class="button-secondary">Clear Selection</a>
+            {% endif %}
+          </div>
+        </div>
+      </form>
+    </div>
+
+    {% if is_edit %}
+    <div class="help-card" style="margin-bottom: var(--space-6);">
+      <h4>Currently Editing</h4>
+      <p><strong>Slug:</strong> {{ form.current_kpi_slug.data }}</p>
+      <p><strong>Version:</strong> {{ form.current_kpi_version.data }}</p>
+    </div>
+    {% endif %}
+
+    <form method="post" class="form-grid" data-unsaved-warning style="margin-top: calc(var(--space-6) * 2); background: #f3f5f8; border-radius: var(--radius-lg); padding: calc(var(--space-6) * 1.1);">
+      {{ form.hidden_tag() }}
+      {% if form.errors %}
+      <div class="error-summary full-row" role="alert">
+        <h3>Fix the following fields before saving:</h3>
+        <ul>
+          {% for field_name, errors in form.errors.items() %}
+            {% for error in errors %}
+            <li>{{ form[field_name].label.text }}: {{ error }}</li>
+            {% endfor %}
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <div class="form-section">
+        <h3>Identity and Lifecycle</h3>
+        <div class="form-subgrid">
+          <div>
+            {{ form.kpi_name.label }}
+            {{ form.kpi_name(id='kpi_name') }}
+            {% for error in form.kpi_name.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+          <div>
+            <label>Derived Metric Slug</label>
+            <input id="derived_slug" type="text" readonly placeholder="auto-generated from metric name">
+          </div>
+          <div>
+            <label>Metric Version</label>
+            <input type="text" value="{% if is_edit %}{{ form.current_kpi_version.data }} (fixed for update){% else %}1 (auto for new metric){% endif %}" readonly>
+          </div>
+          <div>
+            {{ form.status.label }}
+            {{ form.status() }}
+            {% for error in form.status.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+          <div>
+            {{ form.certification_level.label }}
+            {{ form.certification_level() }}
+            {% for error in form.certification_level.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+          <div>
+            {{ form.metric_query_reference.label }}
+            {{ form.metric_query_reference() }}
+          </div>
+          <div>
+            {{ form.effective_start_date.label }}
+            {{ form.effective_start_date() }}
+          </div>
+          <div>
+            {{ form.effective_end_date.label }}
+            {{ form.effective_end_date() }}
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h3>Ownership and Business Context</h3>
+        <div class="form-subgrid">
+          <div>
+            {{ form.owner_person.label }}
+            {{ form.owner_person() }}
+            {% for error in form.owner_person.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+          <div>
+            {{ form.owner_team.label }}
+            {{ form.owner_team() }}
+            {% for error in form.owner_team.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="full-row">
+            {{ form.business_definition.label }}
+            {{ form.business_definition(rows=3) }}
+            {% for error in form.business_definition.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="full-row">
+            {{ form.business_question.label }}
+            {{ form.business_question(rows=2) }}
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h3>Formula and Governance</h3>
+        <div class="form-subgrid">
+          <div class="full-row">
+            {{ form.formula.label }}
+            {{ form.formula(rows=4) }}
+            {% for error in form.formula.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="full-row">
+            {{ form.change_reason.label }}
+            {{ form.change_reason(rows=2) }}
+          </div>
+          <div>
+            <label class="checkbox-inline">{{ form.breaking_change_flag() }} Breaking Change</label>
+          </div>
+          <div class="full-row small">
+            To set <code>status = active</code>, enter two approval names below.
+          </div>
+          <div class="full-row">
+            <label for="{{ form.approval_1_by.id }}">Approval 1 Name</label>
+            {{ form.approval_1_by(placeholder='Example: Jane Smith, Finance Director') }}
+          </div>
+          <div class="full-row">
+            <label for="{{ form.approval_2_by.id }}">Approval 2 Name</label>
+            {{ form.approval_2_by(placeholder='Example: Alex Lee, Data Governance Lead') }}
+          </div>
+          <div class="full-row">
+            <details class="more-options">
+              <summary>More options: Source Objects and Filter Rules</summary>
+              <div class="json-help-layout">
+                <div>
+                  <label for="{{ form.source_objects_json.id }}">Source Objects (JSON)</label>
+                  {{ form.source_objects_json(rows=3, placeholder='Example: [{"system":"report_ts","object":"fact_ride_economics"}]') }}
+
+                  <label for="{{ form.filter_conditions_json.id }}">Filter Rules (JSON)</label>
+                  {{ form.filter_conditions_json(rows=3, placeholder='Example: {"is_active": true, "is_completed": true}') }}
+                </div>
+
+                <aside class="help-card">
+                  <h4>Field Definitions</h4>
+                  <p><strong>Source Objects (JSON):</strong> table(s) or view(s) this metric is calculated from.</p>
+                  <p><strong>Filter Rules (JSON):</strong> rules that should always apply when calculating this metric.</p>
+                  <ul>
+                    <li>Use valid JSON syntax.</li>
+                    <li>Keep values simple and readable.</li>
+                    <li>If unknown, leave blank and update later.</li>
+                  </ul>
+                </aside>
+              </div>
+            </details>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions full-row">
+        {{ form.submit(value='Update Metric Definition' if is_edit else 'Save Metric Definition') }}
+      </div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Metric Definitions</h2>
+    <p class="small">To update a metric definition, click <strong>Load</strong> to open it in the form on the left.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Metric ID</th>
+            <th>Slug</th>
+            <th>Version</th>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Certification</th>
+            <th>Owner Team</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in definitions %}
+          <tr>
+            <td>{{ d.kpi_id }}</td>
+            <td>{{ d.kpi_slug }}</td>
+            <td>{{ d.kpi_version }}</td>
+            <td>{{ d.kpi_name }}</td>
+            <td>{{ d.status }}</td>
+            <td>{{ d.certification_level }}</td>
+            <td>{{ d.owner_team }}</td>
+            <td>{{ d.created_at }}</td>
+            <td>
+              <a href="{{ url_for('kpi_definitions.list_definitions', edit_slug=d.kpi_slug, edit_version=d.kpi_version) }}">Load</a>
+              |
+              <a href="{{ url_for('kpi_definitions.metric_overview', kpi_slug=d.kpi_slug, kpi_version=d.kpi_version) }}">Overview</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+  (function () {
+    const nameInput = document.getElementById('kpi_name');
+    const slugOutput = document.getElementById('derived_slug');
+    const lookupInput = document.getElementById('definition_lookup');
+    const datalist = document.getElementById('definition_lookup_options');
+    const editSlugInput = document.getElementById('edit_slug');
+    const editVersionInput = document.getElementById('edit_version');
+    const statusEl = document.getElementById('definition_lookup_status');
+
+    const slugify = (value) => value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_+|_+$/g, '');
+
+    const updateSlug = () => {
+      slugOutput.value = slugify(nameInput.value || '');
+    };
+
+    if (nameInput && slugOutput) {
+      nameInput.addEventListener('input', updateSlug);
+      updateSlug();
+    }
+
+    if (!lookupInput || !datalist || !editSlugInput || !editVersionInput || !statusEl) return;
+
+    let definitions = [];
+    let activeController = null;
+
+    const debounce = (fn, delay) => {
+      let timer = null;
+      return (...args) => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => fn(...args), delay);
+      };
+    };
+
+    const renderOptions = () => {
+      datalist.innerHTML = definitions.map((d) =>
+        `<option value="${d.kpi_name}" label="${d.kpi_slug} | ${d.kpi_id} | v${d.kpi_version}"></option>` +
+        `<option value="${d.kpi_id}" label="${d.kpi_name} | ${d.kpi_slug} | v${d.kpi_version}"></option>` +
+        `<option value="${d.kpi_slug}" label="${d.kpi_name} | ${d.kpi_id} | v${d.kpi_version}"></option>`
+      ).join('');
+    };
+
+    const applyMatch = (value) => {
+      const q = (value || '').trim().toLowerCase();
+      if (!q) return;
+      const match = definitions.find((d) =>
+        d.kpi_name.toLowerCase() === q ||
+        d.kpi_id.toLowerCase() === q ||
+        d.kpi_slug.toLowerCase() === q
+      );
+      if (!match) return;
+      editSlugInput.value = match.kpi_slug;
+      editVersionInput.value = match.kpi_version;
+      statusEl.textContent = `Ready to load ${match.kpi_name} (v${match.kpi_version}).`;
+    };
+
+    const searchDefinitions = debounce(async (value) => {
+      const q = (value || '').trim();
+      if (q.length < 2) {
+        if (activeController) activeController.abort();
+        definitions = [];
+        renderOptions();
+        statusEl.textContent = 'Type at least 2 characters to search, then load the metric into the form for updating.';
+        return;
+      }
+      try {
+        if (activeController) activeController.abort();
+        activeController = new AbortController();
+        statusEl.textContent = 'Searching metric catalog...';
+        const response = await fetch(`{{ url_for("lineage.search_kpis") }}?q=${encodeURIComponent(q)}`, {
+          signal: activeController.signal,
+          headers: { "Accept": "application/json" }
+        });
+        const payload = await response.json();
+        definitions = payload.results || [];
+        renderOptions();
+        statusEl.textContent = definitions.length
+          ? `${definitions.length} metric match(es) found.`
+          : 'No metric matches found.';
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+        definitions = [];
+        renderOptions();
+        statusEl.textContent = 'Metric search failed. Try again.';
+      }
+    }, 250);
+
+    lookupInput.addEventListener('input', (e) => searchDefinitions(e.target.value));
+    lookupInput.addEventListener('change', (e) => applyMatch(e.target.value));
+    lookupInput.addEventListener('blur', (e) => applyMatch(e.target.value));
+  })();
+</script>
+{% endblock %}

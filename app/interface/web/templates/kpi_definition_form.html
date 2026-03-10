@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="panel">
+  <h1>{% if is_edit %}Edit Metric Definition{% else %}New Metric Definition{% endif %}</h1>
+  <p class="small">Metric ID is auto-generated. Metric slug is derived from metric name.</p>
+  <p class="small"><strong>Required</strong> fields are labeled with "(Required)".</p>
+
+  <form method="post" class="form-grid" data-unsaved-warning>
+    {{ form.hidden_tag() }}
+    {% if form.errors %}
+    <div class="error-summary full-row" role="alert">
+      <h3>Fix the following fields before saving:</h3>
+      <ul>
+        {% for field_name, errors in form.errors.items() %}
+          {% for error in errors %}
+          <li>{{ form[field_name].label.text }}: {{ error }}</li>
+          {% endfor %}
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <div>
+      {{ form.kpi_name.label }}
+      {{ form.kpi_name(id='kpi_name') }}
+      {% for error in form.kpi_name.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+    </div>
+
+    <div>
+      <label>Derived Metric Slug</label>
+      <input id="derived_slug" type="text" readonly placeholder="auto-generated from metric name">
+    </div>
+
+    <div>
+      <label>Metric Version</label>
+      {{ form.kpi_version(readonly=true) }}
+    </div>
+
+    <div>
+      {{ form.owner_person.label }}
+      {{ form.owner_person() }}
+      {% for error in form.owner_person.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+    </div>
+
+    <div>
+      {{ form.owner_team.label }}
+      {{ form.owner_team() }}
+      {% for error in form.owner_team.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+    </div>
+
+    <div>
+      {{ form.status.label }}
+      {{ form.status() }}
+      {% for error in form.status.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+    </div>
+
+    <div>
+      {{ form.certification_level.label }}
+      {{ form.certification_level() }}
+      {% for error in form.certification_level.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+    </div>
+
+    <div class="full-row">
+      {{ form.business_definition.label }}
+      {{ form.business_definition(rows=3) }}
+      {% for error in form.business_definition.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+    </div>
+
+    <div class="full-row">
+      {{ form.formula.label }}
+      {{ form.formula(rows=4) }}
+      {% for error in form.formula.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+    </div>
+
+    <div class="full-row">
+      {{ form.business_question.label }}
+      {{ form.business_question(rows=2) }}
+    </div>
+
+    <div>
+      {{ form.metric_query_reference.label }}
+      {{ form.metric_query_reference() }}
+    </div>
+
+    <div>
+      {{ form.effective_start_date.label }}
+      {{ form.effective_start_date() }}
+    </div>
+
+    <div>
+      {{ form.effective_end_date.label }}
+      {{ form.effective_end_date() }}
+    </div>
+
+    <div class="full-row">
+      {{ form.change_reason.label }}
+      {{ form.change_reason(rows=2) }}
+    </div>
+
+    <div>
+      <label class="checkbox-inline">{{ form.breaking_change_flag() }} Breaking Change</label>
+    </div>
+
+    <div class="full-row small">
+      To set <code>status = active</code>, enter two approval names below.
+    </div>
+
+    <div class="full-row">
+      <label for="{{ form.approval_1_by.id }}">Approval 1 Name</label>
+      {{ form.approval_1_by(placeholder='Example: Jane Smith, Finance Director') }}
+    </div>
+
+    <div class="full-row">
+      <label for="{{ form.approval_2_by.id }}">Approval 2 Name</label>
+      {{ form.approval_2_by(placeholder='Example: Alex Lee, Data Governance Lead') }}
+    </div>
+
+    <div class="full-row">
+      <details class="more-options">
+        <summary>More options: Source Objects and Filter Rules</summary>
+        <div class="json-help-layout">
+          <div>
+            <label for="{{ form.source_objects_json.id }}">Source Objects (JSON)</label>
+            {{ form.source_objects_json(rows=3, placeholder='Example: [{\"system\":\"report_ts\",\"object\":\"fact_ride_economics\"}]') }}
+
+            <label for="{{ form.filter_conditions_json.id }}">Filter Rules (JSON)</label>
+            {{ form.filter_conditions_json(rows=3, placeholder='Example: {\"is_active\": true, \"is_completed\": true}') }}
+          </div>
+
+          <aside class="help-card">
+            <h4>Field Definitions</h4>
+            <p><strong>Source Objects (JSON):</strong> which table(s) or view(s) this metric is calculated from.</p>
+            <p><strong>Filter Rules (JSON):</strong> required conditions that must always apply when this metric is calculated.</p>
+            <ul>
+              <li>Use valid JSON syntax.</li>
+              <li>Keep it simple and human-readable.</li>
+              <li>If unknown, leave blank and update later.</li>
+            </ul>
+          </aside>
+        </div>
+      </details>
+    </div>
+
+    <div class="form-actions full-row">{{ form.submit() }}</div>
+  </form>
+</section>
+
+<script>
+  (function () {
+    const nameInput = document.getElementById('kpi_name');
+    const slugOutput = document.getElementById('derived_slug');
+
+    const slugify = (value) => {
+      return value
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_+|_+$/g, '');
+    };
+
+    const updateSlug = () => {
+      slugOutput.value = slugify(nameInput.value || '');
+    };
+
+    nameInput.addEventListener('input', updateSlug);
+    updateSlug();
+  })();
+</script>
+{% endblock %}

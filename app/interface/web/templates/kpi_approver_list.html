@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="workspace workspace-usage">
+  <section class="panel">
+    <h2>Add Metric Approver</h2>
+    <p class="small">Link approvers to a metric version for governance tracking.</p>
+
+    <form method="post" class="form-grid" data-unsaved-warning>
+      {{ form.hidden_tag() }}
+      {% if form.errors %}
+      <div class="error-summary full-row" role="alert">
+        <h3>Fix the following fields before saving:</h3>
+        <ul>
+          {% for field_name, errors in form.errors.items() %}
+            {% for error in errors %}
+            <li>{{ form[field_name].label.text }}: {{ error }}</li>
+            {% endfor %}
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <div class="form-section">
+        <h3>Metric Link</h3>
+        <div class="form-subgrid">
+          <div class="full-row">
+            <label for="kpi_lookup">Find Metric by ID or Slug</label>
+            <input id="kpi_lookup" type="text" list="kpi_lookup_options" placeholder="Start typing metric ID or slug">
+            <datalist id="kpi_lookup_options"></datalist>
+            <div id="kpi_lookup_status" class="small">Type at least 2 characters to search the metric catalog.</div>
+          </div>
+          <div>
+            {{ form.kpi_id.label }}
+            {{ form.kpi_id() }}
+            {% for error in form.kpi_id.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+          <div>
+            {{ form.kpi_slug.label }}
+            {{ form.kpi_slug() }}
+            {% for error in form.kpi_slug.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+          <div>
+            {{ form.kpi_version.label }}
+            {{ form.kpi_version() }}
+            {% for error in form.kpi_version.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h3>Approver Details</h3>
+        <div class="form-subgrid">
+          <div>
+            {{ form.approver_name.label }}
+            {{ form.approver_name() }}
+            {% for error in form.approver_name.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+          <div>
+            {{ form.approver_email.label }}
+            {{ form.approver_email() }}
+          </div>
+          <div>
+            {{ form.approver_role.label }}
+            {{ form.approver_role() }}
+            {% for error in form.approver_role.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="full-row">
+            {{ form.approval_notes.label }}
+            {{ form.approval_notes(rows=2) }}
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions full-row">{{ form.submit() }}</div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Metric Approvers</h2>
+    <p class="small">Recent approvers added to metric versions.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Approver ID</th>
+            <th>Metric ID</th>
+            <th>Slug</th>
+            <th>Version</th>
+            <th>Approver Name</th>
+            <th>Role</th>
+            <th>Approved At</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in approvers %}
+          <tr>
+            <td>{{ a.approver_id }}</td>
+            <td>{{ a.kpi_id }}</td>
+            <td>{{ a.kpi_slug }}</td>
+            <td>{{ a.kpi_version }}</td>
+            <td>{{ a.approver_name }}</td>
+            <td>{{ a.approver_role }}</td>
+            <td>{{ a.approved_at }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  (function () {
+    const lookupInput = document.getElementById("kpi_lookup");
+    const datalist = document.getElementById("kpi_lookup_options");
+    const idInput = document.getElementById("kpi_id");
+    const slugInput = document.getElementById("kpi_slug");
+    const versionInput = document.getElementById("kpi_version");
+    const statusEl = document.getElementById("kpi_lookup_status");
+    let definitions = [];
+    let activeController = null;
+
+    if (!lookupInput || !datalist || !idInput || !slugInput || !versionInput || !statusEl) return;
+
+    const debounce = (fn, delay) => {
+      let timer = null;
+      return (...args) => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => fn(...args), delay);
+      };
+    };
+
+    const renderOptions = () => {
+      datalist.innerHTML = definitions.map((d) =>
+        `<option value="${d.kpi_id}" label="${d.kpi_name} | ${d.kpi_slug} | v${d.kpi_version}"></option>` +
+        `<option value="${d.kpi_slug}" label="${d.kpi_name} | ${d.kpi_id} | v${d.kpi_version}"></option>`
+      ).join("");
+    };
+
+    const applyMatch = (value) => {
+      const q = (value || "").trim().toLowerCase();
+      if (!q) return;
+      const match = definitions.find((d) => d.kpi_id.toLowerCase() === q || d.kpi_slug.toLowerCase() === q);
+      if (!match) return;
+      idInput.value = match.kpi_id;
+      slugInput.value = match.kpi_slug;
+      versionInput.value = match.kpi_version;
+      statusEl.textContent = `Loaded ${match.kpi_name} (v${match.kpi_version}).`;
+    };
+
+    const searchDefinitions = debounce(async (value) => {
+      const q = (value || "").trim();
+      if (q.length < 2) {
+        if (activeController) activeController.abort();
+        definitions = [];
+        renderOptions();
+        statusEl.textContent = "Type at least 2 characters to search the metric catalog.";
+        return;
+      }
+      try {
+        if (activeController) activeController.abort();
+        activeController = new AbortController();
+        statusEl.textContent = "Searching metric catalog...";
+        const response = await fetch(`{{ url_for("lineage.search_kpis") }}?q=${encodeURIComponent(q)}`, {
+          signal: activeController.signal,
+          headers: { "Accept": "application/json" }
+        });
+        const payload = await response.json();
+        definitions = payload.results || [];
+        renderOptions();
+        statusEl.textContent = definitions.length
+          ? `${definitions.length} metric match(es) found.`
+          : "No metric matches found.";
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        definitions = [];
+        renderOptions();
+        statusEl.textContent = "Metric search failed. Try again.";
+      }
+    }, 250);
+
+    lookupInput.addEventListener("input", (e) => searchDefinitions(e.target.value));
+    lookupInput.addEventListener("change", (e) => applyMatch(e.target.value));
+    lookupInput.addEventListener("blur", (e) => applyMatch(e.target.value));
+  })();
+</script>
+{% endblock %}

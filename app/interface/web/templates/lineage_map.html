@@ -1,0 +1,515 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .lineage-shell {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .lineage-top {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+
+  .lineage-search-card h2,
+  .lineage-canvas-card h2,
+  .lineage-detail-card h2 {
+    margin-top: 0;
+  }
+
+  .lineage-search-results {
+    margin-top: var(--space-3);
+    display: grid;
+    gap: var(--space-2);
+    max-height: 260px;
+    overflow: auto;
+  }
+
+  .lineage-result {
+    width: 100%;
+    text-align: left;
+    font: inherit;
+    border: 1px solid #d6ddee;
+    border-radius: var(--radius-md);
+    background: #fbfcff;
+    padding: var(--space-3);
+    cursor: pointer;
+    transition: var(--duration-fast) var(--easing-standard);
+  }
+
+  .lineage-result:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+    border-color: #afbddf;
+  }
+
+  .lineage-result strong {
+    display: block;
+    margin-bottom: var(--space-1);
+  }
+
+  .lineage-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.7fr);
+    gap: var(--space-4);
+    align-items: start;
+  }
+
+  .lineage-canvas-wrap {
+    position: relative;
+    min-height: 520px;
+    border: 1px solid #d7dceb;
+    border-radius: var(--radius-lg);
+    background:
+      radial-gradient(circle at 20% 20%, rgba(55, 93, 180, 0.08), transparent 28%),
+      radial-gradient(circle at 85% 15%, rgba(244, 176, 0, 0.12), transparent 24%),
+      linear-gradient(180deg, #f7f9fd, #eef2f8);
+    overflow: hidden;
+  }
+
+  .lineage-graph {
+    position: relative;
+    min-height: 520px;
+    padding: var(--space-5);
+    display: grid;
+    grid-template-columns: minmax(240px, 0.75fr) minmax(120px, 0.4fr) minmax(280px, 1.1fr);
+    gap: var(--space-4);
+    align-items: center;
+  }
+
+  .lineage-column {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .lineage-column.center {
+    justify-items: center;
+  }
+
+  .lineage-node {
+    border: 1px solid #d7dceb;
+    border-radius: var(--radius-lg);
+    background: rgba(255, 255, 255, 0.92);
+    padding: var(--space-3);
+    box-shadow: var(--shadow-md);
+    cursor: pointer;
+  }
+
+  .lineage-node.focus {
+    border-color: #375db4;
+    background: linear-gradient(180deg, #fffdf4, #ffffff);
+  }
+
+  .lineage-node.kpi {
+    border-left: 6px solid #375db4;
+  }
+
+  .lineage-node.report {
+    border-left: 6px solid #ca8d00;
+  }
+
+  .lineage-node small {
+    display: block;
+    margin-top: var(--space-1);
+    color: var(--muted);
+  }
+
+  .lineage-empty {
+    display: grid;
+    place-items: center;
+    min-height: 520px;
+    padding: var(--space-5);
+    text-align: center;
+    color: var(--muted);
+  }
+
+  .lineage-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .lineage-badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+
+  .lineage-badge {
+    display: inline-block;
+    padding: 0.22rem 0.6rem;
+    border-radius: var(--radius-pill);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    background: #eef2ff;
+    color: #314585;
+  }
+
+  .lineage-detail-card dl {
+    margin: 0;
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .lineage-detail-card dt {
+    font-size: var(--font-size-xs);
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .lineage-detail-card dd {
+    margin: 0;
+    font-size: var(--font-size-sm);
+  }
+
+  .lineage-status {
+    margin-top: var(--space-2);
+    color: var(--muted);
+  }
+
+  .lineage-search-status {
+    min-height: 1.25rem;
+    margin-top: var(--space-2);
+    color: var(--muted);
+  }
+
+  @media (max-width: 980px) {
+    .lineage-top,
+    .lineage-main {
+      grid-template-columns: 1fr;
+    }
+
+    .lineage-graph {
+      grid-template-columns: 1fr;
+      min-height: 640px;
+    }
+  }
+</style>
+
+<div class="lineage-shell">
+  <section class="hero">
+    <h1>Visual Metric Map</h1>
+    <p>Search a metric or report asset and inspect downstream usage without leaving the catalog.</p>
+  </section>
+
+  <section class="lineage-top">
+    <article class="panel lineage-search-card">
+      <h2>Search Metric</h2>
+      <p class="small">Search by metric name, slug, or ID. Results are capped for speed.</p>
+      <input id="kpi-search-input" type="text" placeholder="Example: gross profit">
+      <div id="kpi-search-status" class="small lineage-search-status">Type at least 2 characters to search metrics.</div>
+      <div id="kpi-search-results" class="lineage-search-results"></div>
+    </article>
+
+    <article class="panel lineage-search-card">
+      <h2>Search Report</h2>
+      <p class="small">Search report or dashboard names across tools.</p>
+      <input id="report-search-input" type="text" placeholder="Example: executive scorecard">
+      <div id="report-search-status" class="small lineage-search-status">Type at least 2 characters to search reports.</div>
+      <div id="report-search-results" class="lineage-search-results"></div>
+    </article>
+  </section>
+
+  <section class="lineage-main">
+    <article class="panel lineage-canvas-card">
+      <h2>Lineage Graph</h2>
+      <p id="lineage-status" class="small lineage-status">Choose a metric or report to load its local neighborhood.</p>
+      <div id="lineage-canvas" class="lineage-canvas-wrap">
+        <div id="lineage-empty" class="lineage-empty">
+          <div>
+            <strong>No lineage loaded</strong>
+            <div class="small">Use one of the search boxes above. The graph only renders the local neighborhood for performance.</div>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <aside class="panel lineage-detail-card">
+      <h2>Selected Node</h2>
+      <p id="lineage-detail-empty" class="small">Click a metric or report card in the graph to inspect metadata.</p>
+      <dl id="lineage-detail-list" hidden></dl>
+    </aside>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  (function () {
+    const kpiInput = document.getElementById("kpi-search-input");
+    const reportInput = document.getElementById("report-search-input");
+    const kpiResults = document.getElementById("kpi-search-results");
+    const reportResults = document.getElementById("report-search-results");
+    const kpiSearchStatus = document.getElementById("kpi-search-status");
+    const reportSearchStatus = document.getElementById("report-search-status");
+    const canvas = document.getElementById("lineage-canvas");
+    const emptyState = document.getElementById("lineage-empty");
+    const statusEl = document.getElementById("lineage-status");
+    const detailEmpty = document.getElementById("lineage-detail-empty");
+    const detailList = document.getElementById("lineage-detail-list");
+    let currentGraph = null;
+    let kpiSearchController = null;
+    let reportSearchController = null;
+    const kpiBaseUrl = `{{ url_for("lineage.kpi_lineage", kpi_slug="__slug__", kpi_version=999999) }}`;
+
+    const debounce = (fn, delay) => {
+      let timer = null;
+      return (...args) => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => fn(...args), delay);
+      };
+    };
+
+    const escapeHtml = (value) => String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
+
+    const setStatus = (message) => {
+      statusEl.textContent = message;
+    };
+
+    const renderDetail = (node) => {
+      detailEmpty.hidden = true;
+      detailList.hidden = false;
+      const entries = Object.entries(node.data || {}).filter(([, value]) => value !== null && value !== "");
+      detailList.innerHTML = `
+        <dt>Node Type</dt>
+        <dd>${escapeHtml(node.type)}</dd>
+        <dt>Label</dt>
+        <dd>${escapeHtml(node.label)}</dd>
+        ${entries.map(([key, value]) => `<dt>${escapeHtml(key.replaceAll("_", " "))}</dt><dd>${escapeHtml(value)}</dd>`).join("")}
+      `;
+    };
+
+    const drawLines = (graphEl) => {
+      const svg = graphEl.querySelector("svg");
+      const focus = graphEl.querySelector(".lineage-node.focus");
+      const targets = [...graphEl.querySelectorAll(".lineage-node.related")];
+      if (!svg || !focus || targets.length === 0) return;
+
+      const graphRect = graphEl.getBoundingClientRect();
+      const focusRect = focus.getBoundingClientRect();
+      const x1 = focusRect.right - graphRect.left;
+      const y1 = focusRect.top + (focusRect.height / 2) - graphRect.top;
+
+      svg.innerHTML = targets.map((target) => {
+        const rect = target.getBoundingClientRect();
+        const x2 = rect.left - graphRect.left;
+        const y2 = rect.top + (rect.height / 2) - graphRect.top;
+        const c1 = x1 + 40;
+        const c2 = x2 - 40;
+        return `<path d="M ${x1} ${y1} C ${c1} ${y1}, ${c2} ${y2}, ${x2} ${y2}" stroke="rgba(55,93,180,0.35)" stroke-width="3" fill="none" />`;
+      }).join("");
+    };
+
+    const renderGraph = (graph) => {
+      currentGraph = graph;
+      if (!graph.nodes.length) {
+        canvas.innerHTML = emptyState.outerHTML;
+        setStatus("No lineage found for that selection.");
+        detailEmpty.hidden = false;
+        detailList.hidden = true;
+        return;
+      }
+
+      const focusType = graph.meta.focus_type;
+      const focusNode = graph.nodes.find((node) => node.type === focusType) || graph.nodes[0];
+      const relatedNodes = graph.nodes.filter((node) => node.id !== focusNode.id);
+
+      canvas.innerHTML = `
+        <div class="lineage-graph" id="lineage-graph">
+          <svg class="lineage-svg" aria-hidden="true"></svg>
+          <div class="lineage-column center">
+            <article class="lineage-node ${escapeHtml(focusNode.type)} focus" data-node-id="${escapeHtml(focusNode.id)}">
+              <strong>${escapeHtml(focusNode.label)}</strong>
+              <small>${escapeHtml(focusNode.type === "kpi" ? "Focused Metric" : "Focused Report")}</small>
+              <div class="lineage-badge-row">
+                ${(focusNode.data.status ? `<span class="lineage-badge">${escapeHtml(focusNode.data.status)}</span>` : "")}
+                ${(focusNode.data.certification_level ? `<span class="lineage-badge">${escapeHtml(focusNode.data.certification_level)}</span>` : "")}
+                ${(focusNode.data.consumer_tool ? `<span class="lineage-badge">${escapeHtml(focusNode.data.consumer_tool)}</span>` : "")}
+              </div>
+            </article>
+          </div>
+          <div></div>
+          <div class="lineage-column">
+            ${relatedNodes.map((node) => `
+              <article class="lineage-node ${escapeHtml(node.type)} related" data-node-id="${escapeHtml(node.id)}">
+                <strong>${escapeHtml(node.label)}</strong>
+                <small>${escapeHtml(node.type === "kpi" ? "Related Metric" : "Downstream report")}</small>
+                <div class="lineage-badge-row">
+                  ${(node.data.status ? `<span class="lineage-badge">${escapeHtml(node.data.status)}</span>` : "")}
+                  ${(node.data.certification_level ? `<span class="lineage-badge">${escapeHtml(node.data.certification_level)}</span>` : "")}
+                  ${(node.data.consumer_tool ? `<span class="lineage-badge">${escapeHtml(node.data.consumer_tool)}</span>` : "")}
+                </div>
+              </article>
+            `).join("")}
+          </div>
+        </div>
+      `;
+
+      setStatus(`Loaded ${graph.meta.node_count} node(s) and ${graph.meta.edge_count} edge(s).${graph.meta.truncated ? " Results truncated for performance." : ""}`);
+
+      const graphEl = document.getElementById("lineage-graph");
+      graphEl.querySelectorAll(".lineage-node").forEach((nodeEl) => {
+        nodeEl.addEventListener("click", () => {
+          const node = graph.nodes.find((item) => item.id === nodeEl.dataset.nodeId);
+          if (node) renderDetail(node);
+        });
+      });
+
+      renderDetail(focusNode);
+      window.requestAnimationFrame(() => drawLines(graphEl));
+    };
+
+    const fetchJson = async (url, options = {}) => {
+      const response = await fetch(url, {
+        headers: { "Accept": "application/json" },
+        ...options
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Request failed");
+      }
+      return payload;
+    };
+
+    const buildKpiUrl = (slug, version) => (
+      kpiBaseUrl
+        .replace("__slug__", encodeURIComponent(slug))
+        .replace("999999", encodeURIComponent(version))
+    );
+
+    const renderSearchResults = (container, results, formatter) => {
+      if (!results.length) {
+        container.innerHTML = `<div class="small">No matches.</div>`;
+        return;
+      }
+      container.innerHTML = results.map(formatter).join("");
+    };
+
+    const searchKpis = debounce(async (query) => {
+      try {
+        if (query.trim().length < 2) {
+          kpiResults.innerHTML = "";
+          kpiSearchStatus.textContent = "Type at least 2 characters to search metrics.";
+          if (kpiSearchController) kpiSearchController.abort();
+          return;
+        }
+        if (kpiSearchController) kpiSearchController.abort();
+        kpiSearchController = new AbortController();
+        kpiSearchStatus.textContent = "Searching metrics...";
+        const payload = await fetchJson(`{{ url_for("lineage.search_kpis") }}?q=${encodeURIComponent(query)}`, {
+          signal: kpiSearchController.signal
+        });
+        renderSearchResults(kpiResults, payload.results, (item) => `
+          <button class="lineage-result" data-kpi-slug="${escapeHtml(item.kpi_slug)}" data-kpi-version="${escapeHtml(item.kpi_version)}" type="button">
+            <strong>${escapeHtml(item.kpi_name)}</strong>
+            <div class="small">${escapeHtml(item.kpi_slug)} | v${escapeHtml(item.kpi_version)} | ${escapeHtml(item.status)} / ${escapeHtml(item.certification_level)}</div>
+          </button>
+        `);
+        kpiSearchStatus.textContent = payload.results.length
+          ? `${payload.results.length} metric match(es) found.`
+          : "No metric matches found.";
+        kpiResults.querySelectorAll("[data-kpi-slug]").forEach((button) => {
+          button.addEventListener("click", async () => {
+            const slug = button.dataset.kpiSlug;
+            const version = button.dataset.kpiVersion;
+            setStatus("Loading metric lineage...");
+            const graph = await fetchJson(buildKpiUrl(slug, version));
+            const url = new URL(window.location.href);
+            url.searchParams.set("mode", "kpi");
+            url.searchParams.set("kpi_slug", slug);
+            url.searchParams.set("kpi_version", version);
+            window.history.replaceState({}, "", url);
+            renderGraph(graph);
+          });
+        });
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        kpiResults.innerHTML = `<div class="small">${escapeHtml(error.message || "Metric search failed.")}</div>`;
+        kpiSearchStatus.textContent = "Metric search failed. Try again.";
+      }
+    }, 300);
+
+    const searchReports = debounce(async (query) => {
+      try {
+        if (query.trim().length < 2) {
+          reportResults.innerHTML = "";
+          reportSearchStatus.textContent = "Type at least 2 characters to search reports.";
+          if (reportSearchController) reportSearchController.abort();
+          return;
+        }
+        if (reportSearchController) reportSearchController.abort();
+        reportSearchController = new AbortController();
+        reportSearchStatus.textContent = "Searching reports...";
+        const payload = await fetchJson(`{{ url_for("lineage.search_reports") }}?q=${encodeURIComponent(query)}`, {
+          signal: reportSearchController.signal
+        });
+        renderSearchResults(reportResults, payload.results, (item) => `
+          <button class="lineage-result" data-consumer-tool="${escapeHtml(item.consumer_tool)}" data-reference-name="${escapeHtml(item.reference_name)}" type="button">
+            <strong>${escapeHtml(item.reference_name)}</strong>
+            <div class="small">${escapeHtml(item.consumer_tool)} | ${escapeHtml(item.usage_count)} mapped metric row(s)</div>
+          </button>
+        `);
+        reportSearchStatus.textContent = payload.results.length
+          ? `${payload.results.length} report match(es) found.`
+          : "No report matches found.";
+        reportResults.querySelectorAll("[data-consumer-tool]").forEach((button) => {
+          button.addEventListener("click", async () => {
+            const consumerTool = button.dataset.consumerTool;
+            const referenceName = button.dataset.referenceName;
+            setStatus("Loading report lineage...");
+            const graph = await fetchJson(`{{ url_for("lineage.report_lineage") }}?consumer_tool=${encodeURIComponent(consumerTool)}&reference_name=${encodeURIComponent(referenceName)}`);
+            const url = new URL(window.location.href);
+            url.searchParams.set("mode", "report");
+            url.searchParams.set("consumer_tool", consumerTool);
+            url.searchParams.set("reference_name", referenceName);
+            window.history.replaceState({}, "", url);
+            renderGraph(graph);
+          });
+        });
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        reportResults.innerHTML = `<div class="small">${escapeHtml(error.message || "Report search failed.")}</div>`;
+        reportSearchStatus.textContent = "Report search failed. Try again.";
+      }
+    }, 300);
+
+    kpiInput.addEventListener("input", (event) => searchKpis(event.target.value));
+    reportInput.addEventListener("input", (event) => searchReports(event.target.value));
+
+    const params = new URLSearchParams(window.location.search);
+    const boot = async () => {
+      try {
+        if (params.get("mode") === "kpi" && params.get("kpi_slug") && params.get("kpi_version")) {
+          const graph = await fetchJson(buildKpiUrl(params.get("kpi_slug"), params.get("kpi_version")));
+          renderGraph(graph);
+        } else if (params.get("mode") === "report" && params.get("consumer_tool") && params.get("reference_name")) {
+          const graph = await fetchJson(`{{ url_for("lineage.report_lineage") }}?consumer_tool=${encodeURIComponent(params.get("consumer_tool"))}&reference_name=${encodeURIComponent(params.get("reference_name"))}`);
+          renderGraph(graph);
+        }
+      } catch (error) {
+        setStatus(error.message || "Unable to load lineage.");
+      }
+    };
+
+    boot();
+
+    window.addEventListener("resize", () => {
+      const graphEl = document.getElementById("lineage-graph");
+      if (graphEl && currentGraph) {
+        window.requestAnimationFrame(() => drawLines(graphEl));
+      }
+    });
+  })();
+</script>
+{% endblock %}
