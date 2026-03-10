@@ -12,8 +12,10 @@
         <div class="form-subgrid">
           <div class="full-row">
             <label for="definition_lookup">Search by Metric Name, Metric ID, or Metric Slug</label>
-            <input id="definition_lookup" type="text" list="definition_lookup_options" placeholder="Start typing metric name, ID, or slug">
-            <datalist id="definition_lookup_options"></datalist>
+            <div class="lookup-shell">
+              <input id="definition_lookup" type="text" autocomplete="off" placeholder="Start typing metric name, ID, or slug">
+              <div id="definition_lookup_suggestions" class="lookup-suggestions" hidden></div>
+            </div>
             <div id="definition_lookup_status" class="small">Type at least 2 characters to search, then load the metric into the form for updating.</div>
           </div>
           <input id="edit_slug" name="edit_slug" type="hidden" value="{{ form.current_kpi_slug.data or '' }}">
@@ -218,13 +220,14 @@
     </div>
   </section>
 </div>
-
+{% endblock %}
+{% block scripts %}
 <script>
   (function () {
     const nameInput = document.getElementById('kpi_name');
     const slugOutput = document.getElementById('derived_slug');
     const lookupInput = document.getElementById('definition_lookup');
-    const datalist = document.getElementById('definition_lookup_options');
+    const suggestionPanel = document.getElementById('definition_lookup_suggestions');
     const editSlugInput = document.getElementById('edit_slug');
     const editVersionInput = document.getElementById('edit_version');
     const statusEl = document.getElementById('definition_lookup_status');
@@ -245,75 +248,55 @@
       updateSlug();
     }
 
-    if (!lookupInput || !datalist || !editSlugInput || !editVersionInput || !statusEl) return;
+    if (!lookupInput || !suggestionPanel || !editSlugInput || !editVersionInput || !statusEl) return;
 
-    let definitions = [];
-    let activeController = null;
-
-    const debounce = (fn, delay) => {
-      let timer = null;
-      return (...args) => {
-        window.clearTimeout(timer);
-        timer = window.setTimeout(() => fn(...args), delay);
-      };
-    };
-
-    const renderOptions = () => {
-      datalist.innerHTML = definitions.map((d) =>
-        `<option value="${d.kpi_name}" label="${d.kpi_slug} | ${d.kpi_id} | v${d.kpi_version}"></option>` +
-        `<option value="${d.kpi_id}" label="${d.kpi_name} | ${d.kpi_slug} | v${d.kpi_version}"></option>` +
-        `<option value="${d.kpi_slug}" label="${d.kpi_name} | ${d.kpi_id} | v${d.kpi_version}"></option>`
-      ).join('');
-    };
-
-    const applyMatch = (value) => {
+    const findMatch = (value, definitions) => {
       const q = (value || '').trim().toLowerCase();
-      if (!q) return;
-      const match = definitions.find((d) =>
+      if (!q) return null;
+      return definitions.find((d) =>
         d.kpi_name.toLowerCase() === q ||
         d.kpi_id.toLowerCase() === q ||
         d.kpi_slug.toLowerCase() === q
       );
+    };
+
+    const applySelection = (match) => {
       if (!match) return;
       editSlugInput.value = match.kpi_slug;
       editVersionInput.value = match.kpi_version;
       statusEl.textContent = `Ready to load ${match.kpi_name} (v${match.kpi_version}).`;
     };
 
-    const searchDefinitions = debounce(async (value) => {
-      const q = (value || '').trim();
-      if (q.length < 2) {
-        if (activeController) activeController.abort();
-        definitions = [];
-        renderOptions();
-        statusEl.textContent = 'Type at least 2 characters to search, then load the metric into the form for updating.';
-        return;
-      }
-      try {
-        if (activeController) activeController.abort();
-        activeController = new AbortController();
-        statusEl.textContent = 'Searching metric catalog...';
-        const response = await fetch(`{{ url_for("lineage.search_kpis") }}?q=${encodeURIComponent(q)}`, {
-          signal: activeController.signal,
+    const clearSelection = () => {
+      editSlugInput.value = '';
+      editVersionInput.value = '';
+    };
+
+    window.createLookupController({
+      input: lookupInput,
+      panel: suggestionPanel,
+      statusEl,
+      idleMessage: 'Type at least 2 characters to search, then load the metric into the form for updating.',
+      searchingMessage: 'Searching metric catalog...',
+      emptyMessage: 'No metric matches found.',
+      errorMessage: 'Metric search failed. Try again.',
+      foundMessage: (definitions) => `${definitions.length} metric match(es) found.`,
+      fetchResults: async (query, signal) => {
+        const response = await fetch(`{{ url_for("lineage.search_kpis") }}?q=${encodeURIComponent(query)}`, {
+          signal,
           headers: { "Accept": "application/json" }
         });
         const payload = await response.json();
-        definitions = payload.results || [];
-        renderOptions();
-        statusEl.textContent = definitions.length
-          ? `${definitions.length} metric match(es) found.`
-          : 'No metric matches found.';
-      } catch (error) {
-        if (error.name === 'AbortError') return;
-        definitions = [];
-        renderOptions();
-        statusEl.textContent = 'Metric search failed. Try again.';
-      }
-    }, 250);
-
-    lookupInput.addEventListener('input', (e) => searchDefinitions(e.target.value));
-    lookupInput.addEventListener('change', (e) => applyMatch(e.target.value));
-    lookupInput.addEventListener('blur', (e) => applyMatch(e.target.value));
+        return payload.results || [];
+      },
+      primaryText: (item) => item.kpi_name,
+      secondaryText: (item) => `${item.kpi_id} | ${item.kpi_slug} | v${item.kpi_version}`,
+      inputValue: (item) => item.kpi_name,
+      onSelect: applySelection,
+      onType: clearSelection,
+      onClear: clearSelection,
+      onBlur: (value, definitions) => applySelection(findMatch(value, definitions)),
+    });
   })();
 </script>
 {% endblock %}

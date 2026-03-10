@@ -287,6 +287,64 @@
         transform: translateY(1px);
       }
 
+      .lookup-shell {
+        position: relative;
+      }
+
+      .lookup-suggestions {
+        position: absolute;
+        inset: calc(100% + 0.35rem) 0 auto;
+        z-index: 25;
+        display: grid;
+        gap: 0.25rem;
+        max-height: 18rem;
+        overflow: auto;
+        padding: 0.35rem;
+        border: 1px solid #c8d5ee;
+        border-radius: var(--radius-md);
+        background: linear-gradient(180deg, #eef4ff, #e6eefc);
+        box-shadow: var(--shadow-md);
+      }
+
+      .lookup-suggestions[hidden] {
+        display: none;
+      }
+
+      .lookup-option {
+        width: 100%;
+        padding: 0.72rem 0.8rem;
+        border: 1px solid transparent;
+        border-radius: calc(var(--radius-md) - 2px);
+        background: rgba(255, 255, 255, 0.72);
+        color: var(--ink);
+        cursor: pointer;
+        font: inherit;
+        text-align: left;
+        transition: var(--duration-fast) var(--easing-standard);
+      }
+
+      .lookup-option:hover,
+      .lookup-option.is-active {
+        border-color: #b6c9ef;
+        background: #dce8ff;
+      }
+
+      .lookup-option strong {
+        display: block;
+        margin-bottom: 0.18rem;
+      }
+
+      .lookup-option-meta {
+        color: var(--muted);
+        font-size: var(--font-size-xs);
+      }
+
+      .lookup-empty {
+        padding: 0.72rem 0.8rem;
+        border-radius: calc(var(--radius-md) - 2px);
+        background: rgba(255, 255, 255, 0.56);
+      }
+
       .checkbox-inline {
         display: inline-flex;
         align-items: center;
@@ -528,6 +586,159 @@
           });
         });
       })();
+
+      window.createLookupController = function createLookupController(config) {
+        const input = config.input;
+        const panel = config.panel;
+        const statusEl = config.statusEl;
+        const minLength = config.minLength ?? 2;
+        const debounceMs = config.debounceMs ?? 250;
+
+        if (!input || !panel || !statusEl) return null;
+
+        let results = [];
+        let activeIndex = -1;
+        let activeController = null;
+        let suppressBlur = false;
+
+        const escapeHtml = (value) => String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;");
+
+        const debounce = (fn, delay) => {
+          let timer = null;
+          return (...args) => {
+            window.clearTimeout(timer);
+            timer = window.setTimeout(() => fn(...args), delay);
+          };
+        };
+
+        const closePanel = () => {
+          panel.hidden = true;
+          panel.innerHTML = "";
+          activeIndex = -1;
+        };
+
+        const updateActiveOption = () => {
+          panel.querySelectorAll(".lookup-option").forEach((button, index) => {
+            const isActive = index === activeIndex;
+            button.classList.toggle("is-active", isActive);
+            button.setAttribute("aria-selected", isActive ? "true" : "false");
+          });
+        };
+
+        const applySelection = (item) => {
+          config.onSelect(item);
+          if (typeof config.inputValue === "function") {
+            input.value = config.inputValue(item);
+          }
+          closePanel();
+        };
+
+        const renderPanel = () => {
+          if (!results.length) {
+            panel.innerHTML = `<div class="lookup-empty small">${escapeHtml(config.emptyMessage || "No matches found.")}</div>`;
+            panel.hidden = false;
+            return;
+          }
+
+          panel.innerHTML = results.map((item, index) => `
+            <button class="lookup-option${index === activeIndex ? " is-active" : ""}" data-lookup-index="${index}" type="button">
+              <strong>${escapeHtml(config.primaryText(item))}</strong>
+              <div class="lookup-option-meta">${escapeHtml(config.secondaryText(item))}</div>
+            </button>
+          `).join("");
+          panel.hidden = false;
+
+          panel.querySelectorAll("[data-lookup-index]").forEach((button) => {
+            const optionIndex = Number(button.dataset.lookupIndex);
+            button.addEventListener("mouseenter", () => {
+              activeIndex = optionIndex;
+              updateActiveOption();
+            });
+            button.addEventListener("mousedown", (event) => {
+              event.preventDefault();
+              suppressBlur = true;
+              const item = results[optionIndex];
+              if (item) applySelection(item);
+            });
+          });
+        };
+
+        const search = debounce(async (value) => {
+          const query = (value || "").trim();
+          if (query.length < minLength) {
+            if (activeController) activeController.abort();
+            results = [];
+            closePanel();
+            statusEl.textContent = config.idleMessage;
+            if (typeof config.onClear === "function") config.onClear();
+            return;
+          }
+
+          try {
+            if (activeController) activeController.abort();
+            activeController = new AbortController();
+            statusEl.textContent = config.searchingMessage || "Searching...";
+            if (typeof config.onType === "function") config.onType();
+            const payload = await config.fetchResults(query, activeController.signal);
+            results = payload || [];
+            activeIndex = results.length ? 0 : -1;
+            renderPanel();
+            statusEl.textContent = results.length
+              ? config.foundMessage(results)
+              : (config.emptyMessage || "No matches found.");
+          } catch (error) {
+            if (error.name === "AbortError") return;
+            results = [];
+            closePanel();
+            statusEl.textContent = config.errorMessage || "Search failed. Try again.";
+          }
+        }, debounceMs);
+
+        input.addEventListener("input", (event) => search(event.target.value));
+        input.addEventListener("focus", () => {
+          if (results.length) {
+            renderPanel();
+          }
+        });
+        input.addEventListener("keydown", (event) => {
+          if (panel.hidden || !results.length) return;
+
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            activeIndex = Math.min(activeIndex + 1, results.length - 1);
+            updateActiveOption();
+          } else if (event.key === "ArrowUp") {
+            event.preventDefault();
+            activeIndex = Math.max(activeIndex - 1, 0);
+            updateActiveOption();
+          } else if (event.key === "Enter" && activeIndex >= 0) {
+            event.preventDefault();
+            applySelection(results[activeIndex]);
+          } else if (event.key === "Escape") {
+            closePanel();
+          }
+        });
+        input.addEventListener("blur", () => {
+          window.setTimeout(() => {
+            if (suppressBlur) {
+              suppressBlur = false;
+              return;
+            }
+            if (typeof config.onBlur === "function") {
+              config.onBlur(input.value, results);
+            }
+            closePanel();
+          }, 120);
+        });
+
+        return {
+          close: closePanel,
+        };
+      };
     </script>
     {% block scripts %}{% endblock %}
   </body>
