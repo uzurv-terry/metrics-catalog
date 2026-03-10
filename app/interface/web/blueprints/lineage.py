@@ -1,6 +1,6 @@
 from dataclasses import asdict
 
-from flask import Blueprint, current_app, jsonify, render_template, request
+from flask import Blueprint, current_app, jsonify, redirect, request, url_for
 
 from app.domain.exceptions import ValidationError
 
@@ -9,7 +9,7 @@ bp = Blueprint("lineage", __name__, url_prefix="/lineage")
 
 @bp.get("/")
 def index():
-    return render_template("lineage_map.html")
+    return redirect(url_for("kpi_definitions.metric_overview"))
 
 
 @bp.get("/api/kpi/<kpi_slug>/<int:kpi_version>")

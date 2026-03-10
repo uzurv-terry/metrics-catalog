@@ -2,7 +2,7 @@ from pathlib import Path
 import logging
 import time
 
-from flask import Flask, g, render_template, request
+from flask import Flask, g, redirect, request, url_for
 
 from app.application.services import KpiApproverService, KpiDefinitionService, KpiUsageService, LineageService
 from app.config import Settings
@@ -80,7 +80,7 @@ def create_app() -> Flask:
 
     @app.get("/")
     def home():
-        return render_template("home.html")
+        return redirect(url_for("kpi_definitions.metric_overview"))
 
     @app.get("/health")
     def health():
