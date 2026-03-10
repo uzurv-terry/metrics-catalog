@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="panel">
+  <h1>{% if is_edit %}Edit Metric Usage{% else %}New Metric Usage{% endif %}</h1>
+  <p class="small">Map a metric version to a dashboard/report/app usage surface.</p>
+  <p class="small"><strong>Required</strong> fields are labeled with "(Required)".</p>
+
+  <form method="post" class="form-grid" data-unsaved-warning>
+    {{ form.hidden_tag() }}
+    {% if form.errors %}
+    <div class="error-summary full-row" role="alert">
+      <h3>Fix the following fields before saving:</h3>
+      <ul>
+        {% for field_name, errors in form.errors.items() %}
+          {% for error in errors %}
+          <li>{{ form[field_name].label.text }}: {{ error }}</li>
+          {% endfor %}
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <div>
+      {{ form.kpi_id.label }}
+      {{ form.kpi_id() }}
+      {% for error in form.kpi_id.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+    </div>
+
+    <div>
+      {{ form.kpi_slug.label }}
+      {{ form.kpi_slug() }}
+      {% for error in form.kpi_slug.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+    </div>
+
+    <div>
+      {{ form.kpi_version.label }}
+      {{ form.kpi_version() }}
+      {% for error in form.kpi_version.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+    </div>
+
+    <div>
+      {{ form.usage_type.label }}
+      {{ form.usage_type() }}
+      {% for error in form.usage_type.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+    </div>
+
+    <div>
+      {{ form.consumer_tool.label }}
+      {{ form.consumer_tool() }}
+      {% for error in form.consumer_tool.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+    </div>
+
+    <div>
+      {{ form.reference_name.label }}
+      {{ form.reference_name() }}
+      {% for error in form.reference_name.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+    </div>
+
+    <div class="full-row">
+      {{ form.reference_url.label }}
+      {{ form.reference_url() }}
+    </div>
+
+    <div>
+      {{ form.source_system.label }}
+      {{ form.source_system() }}
+    </div>
+
+    <div class="full-row">
+      {{ form.context_notes.label }}
+      {{ form.context_notes(rows=2) }}
+    </div>
+
+    <div>
+      {{ form.default_chart_type.label }}
+      {{ form.default_chart_type() }}
+    </div>
+
+    <div class="full-row">
+      {{ form.approved_visualizations.label }}
+      {{ form.approved_visualizations(rows=2) }}
+    </div>
+
+    <div class="full-row">
+      {{ form.preferred_dimensions.label }}
+      {{ form.preferred_dimensions(rows=2) }}
+    </div>
+
+    <div class="full-row">
+      {{ form.preferred_filters_json.label }}
+      {{ form.preferred_filters_json(rows=3) }}
+    </div>
+
+    <div class="full-row">
+      {{ form.row_level_security_notes.label }}
+      {{ form.row_level_security_notes(rows=2) }}
+    </div>
+
+    <div class="form-actions full-row">{{ form.submit() }}</div>
+  </form>
+</section>
+{% endblock %}

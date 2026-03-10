@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Metric Catalog Admin</title>
+    <style>
+      :root {
+        /* Color tokens */
+        --bg-dark: #131b2e;
+        --bg-mid: #1f2a44;
+        --panel: #ffffff;
+        --ink: #1b2438;
+        --muted: #5e667a;
+        --line: #d7dceb;
+        --accent: #f4b000;
+        --accent-deep: #ca8d00;
+        --link: #2d5bd1;
+        --danger: #b42318;
+
+        /* Typography tokens */
+        --font-family-base: "Trebuchet MS", "Segoe UI", Arial, sans-serif;
+        --font-size-xs: 0.82rem;
+        --font-size-sm: 0.92rem;
+        --font-size-md: 1rem;
+        --font-size-lg: 1.12rem;
+        --font-size-xl: 1.6rem;
+        --font-weight-medium: 600;
+        --font-weight-strong: 700;
+
+        /* Spacing tokens */
+        --space-1: 0.3125rem;
+        --space-2: 0.625rem;
+        --space-3: 0.9375rem;
+        --space-4: 1.25rem;
+        --space-5: 1.5625rem;
+        --space-6: 1.875rem;
+
+        /* Radius tokens */
+        --radius-sm: 8px;
+        --radius-md: 10px;
+        --radius-lg: 14px;
+        --radius-xl: 16px;
+        --radius-pill: 999px;
+
+        /* Shadow tokens */
+        --shadow-md: 0 16px 30px rgba(17, 24, 39, 0.12);
+        --shadow-lg: 0 20px 38px rgba(16, 24, 40, 0.25);
+
+        /* Motion tokens */
+        --duration-fast: 160ms;
+        --easing-standard: ease;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: var(--font-family-base);
+        font-size: var(--font-size-md);
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 10% -10%, #2b3857 0%, transparent 45%),
+          radial-gradient(circle at 95% 0%, #3b4f7d 0%, transparent 35%),
+          linear-gradient(180deg, var(--bg-dark), var(--bg-mid) 28%, #eef1f7 28%, #e9edf6 100%);
+      }
+
+      .shell {
+        max-width: 1400px;
+        margin: var(--space-5) auto calc(var(--space-6) + var(--space-2));
+        padding: 0 var(--space-4);
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-4);
+        margin-bottom: var(--space-2);
+      }
+
+      .brand {
+        color: #fff;
+        font-size: var(--font-size-lg);
+        font-weight: var(--font-weight-strong);
+        letter-spacing: 0.02em;
+      }
+
+      nav {
+        display: flex;
+        gap: var(--space-2);
+        flex-wrap: wrap;
+      }
+
+      nav a {
+        text-decoration: none;
+        color: #f8fafc;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        padding: calc(var(--space-2) - 0.05rem) var(--space-3);
+        border-radius: var(--radius-pill);
+        font-size: var(--font-size-xs);
+        transition: var(--duration-fast) var(--easing-standard);
+      }
+
+      nav a:hover {
+        background: rgba(255, 255, 255, 0.18);
+        transform: translateY(-1px);
+      }
+
+      .breadcrumbs {
+        margin: 0 0 var(--space-4);
+        padding: var(--space-2) var(--space-3);
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: var(--radius-pill);
+        background: rgba(255, 255, 255, 0.08);
+        color: #e8eefc;
+        font-size: var(--font-size-xs);
+      }
+
+      .breadcrumbs a {
+        color: #f8fbff;
+        text-decoration: none;
+      }
+
+      .breadcrumbs .sep {
+        margin: 0 0.35rem;
+        color: #b7c6ea;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-lg);
+        padding: calc(var(--space-4) + var(--space-1));
+        box-shadow: var(--shadow-md);
+      }
+
+      .flash-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 1rem;
+      }
+
+      .flash-list li {
+        margin: 0.35rem 0;
+        padding: var(--space-3);
+        border-radius: var(--radius-md);
+      }
+
+      .flash-success { background: #ecfdf3; color: #067647; border: 1px solid #abefc6; }
+      .flash-error { background: #fef3f2; color: var(--danger); border: 1px solid #fecdca; }
+      .error-summary {
+        margin: 0 0 var(--space-3);
+        padding: var(--space-3);
+        border: 1px solid #fecdca;
+        border-radius: var(--radius-md);
+        background: #fef3f2;
+        color: #912018;
+      }
+
+      .error-summary h3 {
+        margin: 0 0 var(--space-2);
+        font-size: var(--font-size-sm);
+      }
+
+      .error-summary ul {
+        margin: 0;
+        padding-left: 1rem;
+      }
+
+      .field-error {
+        margin-top: var(--space-1);
+        color: #b42318;
+        font-size: var(--font-size-xs);
+      }
+
+      .table-wrap { overflow-x: auto; }
+
+      table { border-collapse: collapse; width: 100%; background: #fff; }
+      th, td { border: 1px solid #eaecf0; padding: 0.69rem; text-align: left; font-size: var(--font-size-sm); }
+      th { background: #f9fafc; }
+
+      td a {
+        color: var(--link);
+        font-weight: var(--font-weight-medium);
+        text-decoration: none;
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: calc((var(--space-4) - 0.1rem) * 1.15) calc(var(--space-4) * 1.15);
+      }
+
+      .form-section {
+        grid-column: 1 / -1;
+        border-top: 1px solid #e7eaf4;
+        padding-top: var(--space-3);
+        margin-top: var(--space-2);
+      }
+
+      .form-section h3 {
+        margin: 0 0 var(--space-2);
+        font-size: var(--font-size-sm);
+        letter-spacing: 0.01em;
+        text-transform: uppercase;
+        color: #344054;
+      }
+
+      .form-subgrid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: calc((var(--space-4) - 0.1rem) * 1.15) calc(var(--space-4) * 1.15);
+      }
+
+      .full-row { grid-column: 1 / -1; }
+
+      input, textarea, select {
+        width: 100%;
+        margin-top: var(--space-1);
+        padding: 0.78rem 0.88rem;
+        border: 1px solid #d0d5dd;
+        border-radius: var(--radius-md);
+        background: #fff;
+      }
+
+      input[type="checkbox"] {
+        width: auto;
+        margin-top: 0;
+        margin-right: var(--space-2);
+        transform: translateY(1px);
+      }
+
+      .checkbox-inline {
+        display: inline-flex;
+        align-items: center;
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+        color: #344054;
+        cursor: pointer;
+      }
+
+      .checkbox-stack {
+        margin-top: var(--space-1);
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--space-2) var(--space-3);
+        border: 1px solid #d0d5dd;
+        border-radius: var(--radius-md);
+        background: #fff;
+        padding: var(--space-3);
+      }
+
+      .checkbox-choice {
+        margin: 0;
+      }
+
+      input[readonly] { background: #f9fafb; color: #475467; }
+
+      input:focus, textarea:focus, select:focus {
+        outline: none;
+        border-color: #73a4ff;
+        box-shadow: 0 0 0 3px rgba(17, 94, 255, 0.12);
+      }
+
+      .form-actions { margin-top: 0.2rem; }
+
+      .form-actions input[type="submit"] {
+        background: var(--accent);
+        color: #182031;
+        border: 1px solid var(--accent-deep);
+        cursor: pointer;
+        font-weight: var(--font-weight-medium);
+      }
+
+      .hero {
+        background: linear-gradient(135deg, #222f4f, #303f68);
+        color: #f8fbff;
+        border-radius: var(--radius-xl);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        padding: calc(var(--space-5) + var(--space-1)) var(--space-5);
+        box-shadow: var(--shadow-lg);
+      }
+
+      .hero h1 {
+        margin: 0 0 var(--space-2);
+        font-size: var(--font-size-xl);
+        letter-spacing: 0.02em;
+      }
+
+      .hero p {
+        margin: 0;
+        color: #d6e2ff;
+      }
+
+      .hero-actions {
+        display: flex;
+        gap: var(--space-2);
+        flex-wrap: wrap;
+        margin-top: var(--space-4);
+      }
+
+      .btn {
+        display: inline-block;
+        text-decoration: none;
+        border-radius: var(--radius-pill);
+        padding: 0.48rem 0.92rem;
+        font-weight: var(--font-weight-strong);
+        font-size: var(--font-size-xs);
+      }
+
+      .btn-primary {
+        background: var(--accent);
+        color: #1c2233;
+      }
+
+      .btn-secondary {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        color: #f8fbff;
+      }
+
+      .grid-3 {
+        margin-top: var(--space-4);
+        display: grid;
+        gap: var(--space-3);
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(560px, 1.2fr) minmax(0, 1.25fr);
+        gap: 1rem;
+        align-items: start;
+      }
+
+      .workspace-usage {
+        grid-template-columns: minmax(560px, 1.15fr) minmax(0, 1.45fr);
+      }
+
+      .workspace .panel {
+        max-height: calc(100vh - 130px);
+        overflow: auto;
+      }
+
+      .json-help-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(260px, 0.85fr);
+        gap: var(--space-3);
+        align-items: start;
+      }
+
+      .help-card {
+        border: 1px solid #d6ddee;
+        border-radius: var(--radius-md);
+        background: #f8faff;
+        padding: var(--space-3);
+      }
+
+      .help-card h4 {
+        margin: 0 0 var(--space-2);
+        font-size: var(--font-size-sm);
+      }
+
+      .help-card p, .help-card li {
+        font-size: var(--font-size-sm);
+        color: #475467;
+      }
+
+      .help-card ul {
+        margin: var(--space-2) 0 0;
+        padding-left: 1rem;
+      }
+
+      details.more-options {
+        border: 1px solid #d7dceb;
+        border-radius: var(--radius-md);
+        background: #fafbff;
+        padding: var(--space-3);
+      }
+
+      details.more-options > summary {
+        cursor: pointer;
+        font-weight: var(--font-weight-medium);
+        color: #1f2a44;
+        margin-bottom: var(--space-2);
+      }
+
+      .small { color: var(--muted); font-size: var(--font-size-sm); }
+
+      @media (max-width: 760px) {
+        .form-grid { grid-template-columns: 1fr; }
+        .form-subgrid { grid-template-columns: 1fr; }
+        .topbar { flex-direction: column; align-items: flex-start; }
+        .grid-3 { grid-template-columns: 1fr; }
+        .workspace { grid-template-columns: 1fr; }
+        .workspace .panel { max-height: none; }
+        .json-help-layout { grid-template-columns: 1fr; }
+        .checkbox-stack { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <div class="topbar">
+        <div class="brand">Metric Catalog Admin</div>
+        <nav>
+          <a href="{{ url_for('home') }}">Home</a>
+          <a href="{{ url_for('kpi_definitions.list_definitions') }}">Metric Definitions</a>
+          <a href="{{ url_for('kpi_definitions.metric_overview') }}">Metric Overview</a>
+          <a href="{{ url_for('kpi_usage.list_usage') }}">Metric Usage</a>
+          <a href="{{ url_for('kpi_approvers.list_approvers') }}">Metric Approvers</a>
+          <a href="{{ url_for('lineage.index') }}">Visual Metric Map</a>
+        </nav>
+      </div>
+      <div class="breadcrumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('home') }}">Home</a>
+        {% if request.endpoint and request.endpoint.startswith('kpi_definitions') %}
+          <span class="sep">/</span>
+          <a href="{{ url_for('kpi_definitions.list_definitions') }}">Metric Definitions</a>
+          {% if request.endpoint == 'kpi_definitions.metric_overview' %}
+            <span class="sep">/</span>
+            <span>Metric Overview</span>
+          {% elif request.endpoint == 'kpi_definitions.edit_definition' %}
+            <span class="sep">/</span>
+            <span>Edit</span>
+          {% endif %}
+        {% elif request.endpoint and request.endpoint.startswith('kpi_usage') %}
+          <span class="sep">/</span>
+          <a href="{{ url_for('kpi_usage.list_usage') }}">Metric Usage</a>
+          {% if request.endpoint == 'kpi_usage.edit_usage' %}
+            <span class="sep">/</span>
+            <span>Edit</span>
+          {% endif %}
+        {% elif request.endpoint and request.endpoint.startswith('kpi_approvers') %}
+          <span class="sep">/</span>
+          <a href="{{ url_for('kpi_approvers.list_approvers') }}">Metric Approvers</a>
+        {% elif request.endpoint and request.endpoint.startswith('lineage') %}
+          <span class="sep">/</span>
+          <a href="{{ url_for('lineage.index') }}">Visual Metric Map</a>
+        {% endif %}
+      </div>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <ul class="flash-list">
+            {% for category, message in messages %}
+              <li class="flash-{{ category }}">{{ message }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </div>
+    <script>
+      (function () {
+        const forms = document.querySelectorAll("form");
+        forms.forEach((form) => {
+          const submitButtons = form.querySelectorAll('button[type="submit"], input[type="submit"]');
+          let isDirty = false;
+          let isSubmitting = false;
+
+          form.addEventListener("input", () => {
+            if (!isSubmitting) {
+              isDirty = true;
+            }
+          });
+
+          form.addEventListener("submit", () => {
+            isSubmitting = true;
+            isDirty = false;
+            submitButtons.forEach((button) => {
+              button.disabled = true;
+              if (button.tagName === "INPUT") {
+                button.dataset.originalValue = button.value;
+                button.value = "Saving...";
+              } else if (button.tagName === "BUTTON") {
+                button.dataset.originalText = button.textContent;
+                button.textContent = "Saving...";
+              }
+            });
+          });
+
+          window.addEventListener("beforeunload", (event) => {
+            if (!form.hasAttribute("data-unsaved-warning")) return;
+            if (!isDirty || isSubmitting) return;
+            event.preventDefault();
+            event.returnValue = "";
+          });
+        });
+      })();
+    </script>
+    {% block scripts %}{% endblock %}
+  </body>
+</html>

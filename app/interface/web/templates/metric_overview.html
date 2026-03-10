@@ -1,0 +1,328 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .metric-overview-shell {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .metric-search-card h1,
+  .metric-overview-card h2 {
+    margin-top: 0;
+  }
+
+  .metric-search-layout {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .metric-overview-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: var(--space-2) 0 var(--space-4);
+  }
+
+  .metric-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.65rem;
+    border-radius: var(--radius-pill);
+    background: #eef2ff;
+    color: #314585;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .metric-overview-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+    gap: var(--space-4);
+    align-items: start;
+  }
+
+  .metric-overview-block + .metric-overview-block {
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid #e7eaf4;
+  }
+
+  .metric-overview-block h3 {
+    margin: 0 0 var(--space-2);
+    font-size: var(--font-size-sm);
+    text-transform: uppercase;
+    color: #344054;
+  }
+
+  .metric-overview-block pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: #f8fafc;
+    border: 1px solid #e4e7ec;
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: var(--font-size-sm);
+  }
+
+  .metric-detail-list {
+    margin: 0;
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .metric-detail-list dt {
+    font-size: var(--font-size-xs);
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .metric-detail-list dd {
+    margin: 0;
+    font-size: var(--font-size-sm);
+  }
+
+  .metric-usage-list {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .metric-usage-item {
+    border: 1px solid #e4e7ec;
+    border-radius: var(--radius-md);
+    background: #fbfcff;
+    padding: var(--space-3);
+  }
+
+  .metric-usage-item strong {
+    display: block;
+    margin-bottom: var(--space-1);
+  }
+
+  .metric-overview-empty {
+    padding: var(--space-5);
+    text-align: center;
+    color: var(--muted);
+  }
+
+  @media (max-width: 980px) {
+    .metric-overview-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div class="metric-overview-shell">
+  <section class="panel metric-search-card">
+    <h1>Metric Overview</h1>
+    <p class="small">Search for a metric by name, ID, or slug, then load a read-only view of that metric version.</p>
+
+    <form method="get" class="metric-search-layout" novalidate>
+      <div>
+        <label for="metric_lookup">Find Metric</label>
+        <input id="metric_lookup" type="text" list="metric_lookup_options" placeholder="Start typing metric name, ID, or slug">
+        <datalist id="metric_lookup_options"></datalist>
+        <div id="metric_lookup_status" class="small">
+          {% if selected_metric %}
+          Loaded {{ definition.kpi_name }} (v{{ definition.kpi_version }}).
+          {% else %}
+          Type at least 2 characters to search the metric catalog.
+          {% endif %}
+        </div>
+      </div>
+      <input id="kpi_slug" name="kpi_slug" type="hidden" value="{{ selected_metric.kpi_slug if selected_metric else '' }}">
+      <input id="kpi_version" name="kpi_version" type="hidden" value="{{ selected_metric.kpi_version if selected_metric else '' }}">
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Load Metric Overview</button>
+        {% if selected_metric %}
+        <a href="{{ url_for('kpi_definitions.metric_overview') }}" class="btn btn-secondary">Clear</a>
+        {% endif %}
+      </div>
+    </form>
+  </section>
+
+  {% if definition %}
+  <section class="panel metric-overview-card">
+    <h2>{{ definition.kpi_name }}</h2>
+    <div class="metric-overview-meta">
+      <span class="metric-pill">Metric ID: {{ definition.kpi_id }}</span>
+      <span class="metric-pill">Slug: {{ definition.kpi_slug }}</span>
+      <span class="metric-pill">Version: {{ definition.kpi_version }}</span>
+      <span class="metric-pill">Status: {{ definition.status }}</span>
+      <span class="metric-pill">Certification: {{ definition.certification_level }}</span>
+    </div>
+
+    <div class="metric-overview-grid">
+      <div>
+        <div class="metric-overview-block">
+          <h3>Formula</h3>
+          <pre>{{ definition.formula }}</pre>
+        </div>
+
+        <div class="metric-overview-block">
+          <h3>Business Question</h3>
+          <p>{{ definition.business_question or 'Not provided.' }}</p>
+        </div>
+
+        <div class="metric-overview-block">
+          <h3>Business Definition</h3>
+          <p>{{ definition.business_definition }}</p>
+        </div>
+
+        <div class="metric-overview-block">
+          <h3>Reports and Usage</h3>
+          {% if usage_rows %}
+          <div class="metric-usage-list">
+            {% for usage in usage_rows %}
+            <div class="metric-usage-item">
+              <strong>{{ usage.reference_name }}</strong>
+              <div class="small">{{ usage.consumer_tool }} | {{ usage.usage_type }}</div>
+              {% if usage.reference_url %}
+              <div class="small"><a href="{{ usage.reference_url }}" target="_blank" rel="noreferrer">Open linked report</a></div>
+              {% endif %}
+              {% if usage.context_notes %}
+              <div class="small">{{ usage.context_notes }}</div>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p>No reports or downstream usage mappings are currently tied to this metric.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <aside class="panel metric-overview-card">
+        <h2>Metric Details</h2>
+        <dl class="metric-detail-list">
+          <div>
+            <dt>Owner Person</dt>
+            <dd>{{ definition.owner_person }}</dd>
+          </div>
+          <div>
+            <dt>Owner Team</dt>
+            <dd>{{ definition.owner_team }}</dd>
+          </div>
+          <div>
+            <dt>Doc Location (Jira/Confluence)</dt>
+            <dd>{{ definition.metric_query_reference or 'Not provided.' }}</dd>
+          </div>
+          <div>
+            <dt>Effective Start Date</dt>
+            <dd>{{ definition.effective_start_date or 'Not provided.' }}</dd>
+          </div>
+          <div>
+            <dt>Effective End Date</dt>
+            <dd>{{ definition.effective_end_date or 'Not provided.' }}</dd>
+          </div>
+          <div>
+            <dt>Change Reason</dt>
+            <dd>{{ definition.change_reason or 'Not provided.' }}</dd>
+          </div>
+          <div>
+            <dt>Breaking Change</dt>
+            <dd>{{ 'Yes' if definition.breaking_change_flag else 'No' }}</dd>
+          </div>
+          <div>
+            <dt>Source Objects</dt>
+            <dd>{{ definition.source_objects_json or 'Not provided.' }}</dd>
+          </div>
+          <div>
+            <dt>Filter Rules</dt>
+            <dd>{{ definition.filter_conditions_json or 'Not provided.' }}</dd>
+          </div>
+        </dl>
+      </aside>
+    </div>
+  </section>
+  {% else %}
+  <section class="panel metric-overview-empty">
+    <strong>No metric selected</strong>
+    <div class="small">Use the search box above to load a read-only metric overview.</div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  (function () {
+    const lookupInput = document.getElementById("metric_lookup");
+    const datalist = document.getElementById("metric_lookup_options");
+    const slugInput = document.getElementById("kpi_slug");
+    const versionInput = document.getElementById("kpi_version");
+    const statusEl = document.getElementById("metric_lookup_status");
+    let definitions = [];
+    let activeController = null;
+
+    if (!lookupInput || !datalist || !slugInput || !versionInput || !statusEl) return;
+
+    const debounce = (fn, delay) => {
+      let timer = null;
+      return (...args) => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => fn(...args), delay);
+      };
+    };
+
+    const renderOptions = () => {
+      datalist.innerHTML = definitions.map((d) =>
+        `<option value="${d.kpi_name}" label="${d.kpi_slug} | ${d.kpi_id} | v${d.kpi_version}"></option>` +
+        `<option value="${d.kpi_id}" label="${d.kpi_name} | ${d.kpi_slug} | v${d.kpi_version}"></option>` +
+        `<option value="${d.kpi_slug}" label="${d.kpi_name} | ${d.kpi_id} | v${d.kpi_version}"></option>`
+      ).join("");
+    };
+
+    const applyMatch = (value) => {
+      const q = (value || "").trim().toLowerCase();
+      if (!q) return;
+      const match = definitions.find((d) =>
+        d.kpi_name.toLowerCase() === q ||
+        d.kpi_id.toLowerCase() === q ||
+        d.kpi_slug.toLowerCase() === q
+      );
+      if (!match) return;
+      slugInput.value = match.kpi_slug;
+      versionInput.value = match.kpi_version;
+      statusEl.textContent = `Ready to load ${match.kpi_name} (v${match.kpi_version}).`;
+    };
+
+    const searchDefinitions = debounce(async (value) => {
+      const q = (value || "").trim();
+      if (q.length < 2) {
+        if (activeController) activeController.abort();
+        definitions = [];
+        renderOptions();
+        statusEl.textContent = "Type at least 2 characters to search the metric catalog.";
+        return;
+      }
+
+      try {
+        if (activeController) activeController.abort();
+        activeController = new AbortController();
+        statusEl.textContent = "Searching metric catalog...";
+        const response = await fetch(`{{ url_for("lineage.search_kpis") }}?q=${encodeURIComponent(q)}`, {
+          signal: activeController.signal,
+          headers: { "Accept": "application/json" }
+        });
+        const payload = await response.json();
+        definitions = payload.results || [];
+        renderOptions();
+        statusEl.textContent = definitions.length
+          ? `${definitions.length} metric match(es) found.`
+          : "No metric matches found.";
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        definitions = [];
+        renderOptions();
+        statusEl.textContent = "Metric search failed. Try again.";
+      }
+    }, 250);
+
+    lookupInput.addEventListener("input", (e) => searchDefinitions(e.target.value));
+    lookupInput.addEventListener("change", (e) => applyMatch(e.target.value));
+    lookupInput.addEventListener("blur", (e) => applyMatch(e.target.value));
+  })();
+</script>
+{% endblock %}

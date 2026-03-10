@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .workspace-usage .panel:first-child .form-grid,
+  .workspace-usage .panel:first-child .form-subgrid {
+    gap: calc(var(--space-4) * 1.5) calc(var(--space-4) * 1.5);
+  }
+
+  .workspace-usage .panel:first-child .form-section {
+    padding-top: calc(var(--space-3) * 1.5);
+    margin-top: calc(var(--space-2) * 1.5);
+  }
+
+  .workspace-usage .panel:first-child .form-actions {
+    margin-top: calc(var(--space-3) * 1.5);
+  }
+
+  .workspace-usage .panel:first-child .checkbox-stack {
+    gap: calc(var(--space-2) * 1.5) calc(var(--space-3) * 1.5);
+    padding: calc(var(--space-3) * 1.5);
+  }
+
+  .workspace-usage .panel:first-child .help-card,
+  .workspace-usage .panel:first-child details.more-options > summary,
+  .workspace-usage .panel:first-child .small {
+    margin-top: calc(var(--space-2) * 1.5);
+  }
+</style>
+<div class="workspace workspace-usage">
+  <section class="panel">
+    <h2>Create Metric Usage</h2>
+    <p class="small">Search by metric ID or metric slug, then map that metric version to one or more consumer tools.</p>
+    <p class="small"><strong>Required</strong> fields are labeled with "(Required)".</p>
+
+    <form method="post" class="form-grid" data-unsaved-warning>
+      {{ form.hidden_tag() }}
+      {% if form.errors %}
+      <div class="error-summary full-row" role="alert">
+        <h3>Fix the following fields before saving:</h3>
+        <ul>
+          {% for field_name, errors in form.errors.items() %}
+            {% for error in errors %}
+            <li>{{ form[field_name].label.text }}: {{ error }}</li>
+            {% endfor %}
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <div class="form-section">
+        <h3>Metric Link</h3>
+        <div class="form-subgrid">
+          <div class="full-row">
+            <label for="kpi_lookup">Find Metric by ID or Slug</label>
+            <input id="kpi_lookup" type="text" list="kpi_lookup_options" placeholder="Start typing metric ID or slug">
+            <datalist id="kpi_lookup_options"></datalist>
+            <div id="kpi_lookup_status" class="small">Type at least 2 characters to search the metric catalog.</div>
+          </div>
+          <div>
+            {{ form.kpi_id.label }}
+            {{ form.kpi_id() }}
+            {% for error in form.kpi_id.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+          <div>
+            {{ form.kpi_slug.label }}
+            {{ form.kpi_slug() }}
+            {% for error in form.kpi_slug.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+          <div>
+            {{ form.kpi_version.label }}
+            {{ form.kpi_version() }}
+            {% for error in form.kpi_version.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h3>Consumer Details</h3>
+        <div class="form-subgrid">
+          <div>
+            {{ form.usage_type.label }}
+            {{ form.usage_type() }}
+            {% for error in form.usage_type.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="full-row">
+            <label>{{ form.consumer_tools.label.text }}</label>
+            <div class="checkbox-stack">
+              {% for option in form.consumer_tools %}
+              <label class="checkbox-inline checkbox-choice">{{ option() }} {{ option.label.text }}</label>
+              {% endfor %}
+            </div>
+            <div class="small">Select all tools where this metric is used. One usage row will be created per selected tool.</div>
+          </div>
+          <div>
+            {{ form.reference_name.label }}
+            {{ form.reference_name() }}
+            {% for error in form.reference_name.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+          <div>
+            {{ form.source_system.label }}
+            {{ form.source_system() }}
+          </div>
+          <div class="full-row">
+            {{ form.reference_url.label }}
+            {{ form.reference_url() }}
+          </div>
+          <div class="full-row">
+            {{ form.context_notes.label }}
+            {{ form.context_notes(rows=2) }}
+          </div>
+          <div class="full-row">
+            <aside class="help-card">
+              <h4>Consumer Metadata Definitions</h4>
+              <p><strong>Dashboard or Report Name:</strong> the name users recognize.</p>
+              <p><strong>Platform or System Name:</strong> where this usage lives (Tableau, Looker, internal app, etc.).</p>
+              <p><strong>Link to Dashboard or Report:</strong> direct link so someone can open it quickly.</p>
+              <p><strong>Additional Notes:</strong> free-text context like business caveats, ownership details, or rollout notes.</p>
+            </aside>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h3>Display Preferences</h3>
+        <details class="more-options">
+          <summary>More options: Visualization and Security Preferences</summary>
+          <div class="form-subgrid">
+            <div>
+              {{ form.default_chart_type.label }}
+              {{ form.default_chart_type() }}
+            </div>
+            <div class="full-row">
+              {{ form.approved_visualizations.label }}
+              {{ form.approved_visualizations(rows=2) }}
+            </div>
+            <div class="full-row">
+              {{ form.preferred_dimensions.label }}
+              {{ form.preferred_dimensions(rows=2) }}
+            </div>
+            <div class="full-row">
+              {{ form.preferred_filters_json.label }}
+              {{ form.preferred_filters_json(rows=3) }}
+            </div>
+            <div class="full-row">
+              {{ form.row_level_security_notes.label }}
+              {{ form.row_level_security_notes(rows=2) }}
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <div class="form-actions full-row">{{ form.submit() }}</div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Metric Usage</h2>
+    <p class="small">To update a usage mapping, click <strong>Edit</strong> on the row you want to change.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Usage ID</th>
+            <th>Metric ID</th>
+            <th>Slug</th>
+            <th>Version</th>
+            <th>Tool</th>
+            <th>Type</th>
+            <th>Reference</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in usage_rows %}
+          <tr>
+            <td>{{ u.usage_id }}</td>
+            <td>{{ u.kpi_id }}</td>
+            <td>{{ u.kpi_slug }}</td>
+            <td>{{ u.kpi_version }}</td>
+            <td>{{ u.consumer_tool }}</td>
+            <td>{{ u.usage_type }}</td>
+            <td>{{ u.reference_name }}</td>
+            <td>{{ u.created_at }}</td>
+            <td><a href="{{ url_for('kpi_usage.edit_usage', usage_id=u.usage_id) }}">Edit</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  (function () {
+    const lookupInput = document.getElementById("kpi_lookup");
+    const datalist = document.getElementById("kpi_lookup_options");
+    const idInput = document.getElementById("kpi_id");
+    const slugInput = document.getElementById("kpi_slug");
+    const versionInput = document.getElementById("kpi_version");
+    const statusEl = document.getElementById("kpi_lookup_status");
+    let definitions = [];
+    let activeController = null;
+
+    if (!lookupInput || !datalist || !idInput || !slugInput || !versionInput || !statusEl) return;
+
+    const debounce = (fn, delay) => {
+      let timer = null;
+      return (...args) => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => fn(...args), delay);
+      };
+    };
+
+    const renderOptions = () => {
+      datalist.innerHTML = definitions.map((d) =>
+        `<option value="${d.kpi_id}" label="${d.kpi_name} | ${d.kpi_slug} | v${d.kpi_version}"></option>` +
+        `<option value="${d.kpi_slug}" label="${d.kpi_name} | ${d.kpi_id} | v${d.kpi_version}"></option>`
+      ).join("");
+    };
+
+    const applyMatch = (value) => {
+      const q = (value || "").trim().toLowerCase();
+      if (!q) return;
+      const match = definitions.find((d) => d.kpi_id.toLowerCase() === q || d.kpi_slug.toLowerCase() === q);
+      if (!match) return;
+      idInput.value = match.kpi_id;
+      slugInput.value = match.kpi_slug;
+      versionInput.value = match.kpi_version;
+      statusEl.textContent = `Loaded ${match.kpi_name} (v${match.kpi_version}).`;
+    };
+
+    const searchDefinitions = debounce(async (value) => {
+      const q = (value || "").trim();
+      if (q.length < 2) {
+        if (activeController) activeController.abort();
+        definitions = [];
+        renderOptions();
+        statusEl.textContent = "Type at least 2 characters to search the metric catalog.";
+        return;
+      }
+      try {
+        if (activeController) activeController.abort();
+        activeController = new AbortController();
+        statusEl.textContent = "Searching metric catalog...";
+        const response = await fetch(`{{ url_for("lineage.search_kpis") }}?q=${encodeURIComponent(q)}`, {
+          signal: activeController.signal,
+          headers: { "Accept": "application/json" }
+        });
+        const payload = await response.json();
+        definitions = payload.results || [];
+        renderOptions();
+        statusEl.textContent = definitions.length
+          ? `${definitions.length} metric match(es) found.`
+          : "No metric matches found.";
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        definitions = [];
+        renderOptions();
+        statusEl.textContent = "Metric search failed. Try again.";
+      }
+    }, 250);
+
+    lookupInput.addEventListener("input", (e) => searchDefinitions(e.target.value));
+    lookupInput.addEventListener("change", (e) => applyMatch(e.target.value));
+    lookupInput.addEventListener("blur", (e) => applyMatch(e.target.value));
+  })();
+</script>
+{% endblock %}
