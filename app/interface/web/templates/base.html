@@ -57,6 +57,8 @@
       body {
         margin: 0;
         min-height: 100vh;
+        position: relative;
+        overflow-x: hidden;
         font-family: var(--font-family-base);
         font-size: var(--font-size-md);
         color: var(--ink);
@@ -66,10 +68,29 @@
           linear-gradient(180deg, var(--bg-dark), var(--bg-mid) 28%, #eef1f7 28%, #e9edf6 100%);
       }
 
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0 0 auto 0;
+        height: min(34vh, 320px);
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0.4;
+        background:
+          radial-gradient(circle at 16% 10%, rgba(255, 255, 255, 0.08), transparent 22%),
+          url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%201600%20320'%20preserveAspectRatio='none'%3E%3Cg%20fill='none'%3E%3Cg%20stroke='%2387a6f8'%20stroke-opacity='.18'%20stroke-width='1'%3E%3Cpath%20d='M0%2072H1600M0%20144H1600M0%20216H1600M0%20288H1600'/%3E%3Cpath%20d='M160%200V320M320%200V320M480%200V320M640%200V320M800%200V320M960%200V320M1120%200V320M1280%200V320M1440%200V320'/%3E%3C/g%3E%3Cpath%20d='M72%20244L264%20206L414%20190L602%20144L768%20156L962%20108L1138%20126L1378%2064' %20stroke='%2396b3ff'%20stroke-opacity='.35'%20stroke-width='4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3Cg%20fill='%23f4b000'%20fill-opacity='.28'%3E%3Ccircle%20cx='72'%20cy='244'%20r='4'/%3E%3Ccircle%20cx='264'%20cy='206'%20r='4'/%3E%3Ccircle%20cx='414'%20cy='190'%20r='4'/%3E%3Ccircle%20cx='602'%20cy='144'%20r='4'/%3E%3Ccircle%20cx='768'%20cy='156'%20r='4'/%3E%3Ccircle%20cx='962'%20cy='108'%20r='4'/%3E%3Ccircle%20cx='1138'%20cy='126'%20r='4'/%3E%3Ccircle%20cx='1378'%20cy='64'%20r='4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        background-repeat: no-repeat, no-repeat;
+        background-position: center top, center top;
+        background-size: auto, 100% 100%;
+        mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.92) 58%, transparent 100%);
+      }
+
       .shell {
         max-width: 1400px;
         margin: var(--space-5) auto calc(var(--space-6) + var(--space-2));
         padding: 0 var(--space-4);
+        position: relative;
+        z-index: 1;
       }
 
       .topbar {
@@ -77,14 +98,55 @@
         align-items: center;
         justify-content: space-between;
         gap: var(--space-4);
-        margin-bottom: var(--space-2);
+        margin-bottom: var(--space-3);
       }
+
+      .brand-lockup {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.9rem;
+        min-width: 0;
+      }
+
+      .brand-mark {
+        position: relative;
+        display: inline-flex;
+        align-items: flex-end;
+        gap: 0.22rem;
+        width: 3rem;
+        height: 2.45rem;
+        padding: 0.4rem 0.45rem;
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 12px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06)),
+          linear-gradient(90deg, rgba(128, 164, 255, 0.18) 1px, transparent 1px),
+          linear-gradient(0deg, rgba(128, 164, 255, 0.14) 1px, transparent 1px);
+        background-size: auto, 0.55rem 100%, 100% 0.55rem;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 10px 22px rgba(10, 18, 38, 0.28);
+      }
+
+      .brand-mark span {
+        width: 0.33rem;
+        border-radius: 999px 999px 0 0;
+        background: linear-gradient(180deg, #f8d36d, #f4b000);
+        box-shadow: 0 0 12px rgba(244, 176, 0, 0.28);
+      }
+
+      .brand-mark span:nth-child(1) { height: 35%; }
+      .brand-mark span:nth-child(2) { height: 62%; }
+      .brand-mark span:nth-child(3) { height: 82%; }
+      .brand-mark span:nth-child(4) { height: 52%; }
 
       .brand {
         color: #fff;
-        font-size: var(--font-size-lg);
+        font-family: "IBM Plex Mono", "SFMono-Regular", "Menlo", monospace;
+        font-size: 1.08rem;
         font-weight: var(--font-weight-strong);
-        letter-spacing: 0.02em;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        text-shadow: 0 0 18px rgba(124, 163, 255, 0.16);
+        white-space: nowrap;
       }
 
       nav {
@@ -109,24 +171,16 @@
         transform: translateY(-1px);
       }
 
-      .breadcrumbs {
-        margin: 0 0 var(--space-4);
-        padding: var(--space-2) var(--space-3);
-        border: 1px solid rgba(255, 255, 255, 0.22);
+      .global-banner {
+        margin-bottom: var(--space-4);
+        padding: 0.72rem 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: var(--radius-pill);
-        background: rgba(255, 255, 255, 0.08);
-        color: #e8eefc;
-        font-size: var(--font-size-xs);
-      }
-
-      .breadcrumbs a {
+        background: rgba(255, 255, 255, 0.12);
         color: #f8fbff;
-        text-decoration: none;
-      }
-
-      .breadcrumbs .sep {
-        margin: 0 0.35rem;
-        color: #b7c6ea;
+        font-size: var(--font-size-sm);
+        line-height: 1.35;
+        box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
       }
 
       .panel {
@@ -317,9 +371,9 @@
       }
 
       .btn-secondary {
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.35);
-        color: #f8fbff;
+        background: #f8fafc;
+        border: 1px solid #d0d5dd;
+        color: #344054;
       }
 
       .grid-3 {
@@ -394,6 +448,7 @@
         .form-grid { grid-template-columns: 1fr; }
         .form-subgrid { grid-template-columns: 1fr; }
         .topbar { flex-direction: column; align-items: flex-start; }
+        .brand { white-space: normal; }
         .grid-3 { grid-template-columns: 1fr; }
         .workspace { grid-template-columns: 1fr; }
         .workspace .panel { max-height: none; }
@@ -405,42 +460,23 @@
   <body>
     <div class="shell">
       <div class="topbar">
-        <div class="brand">Metric Catalog Admin</div>
+        <div class="brand-lockup">
+          <div class="brand-mark" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <div class="brand">Metric Catalog Admin</div>
+        </div>
         <nav>
-          <a href="{{ url_for('home') }}">Home</a>
           <a href="{{ url_for('kpi_definitions.list_definitions') }}">Metric Definitions</a>
           <a href="{{ url_for('kpi_definitions.metric_overview') }}">Metric Overview</a>
           <a href="{{ url_for('kpi_usage.list_usage') }}">Metric Usage</a>
-          <a href="{{ url_for('kpi_approvers.list_approvers') }}">Metric Approvers</a>
-          <a href="{{ url_for('lineage.index') }}">Visual Metric Map</a>
         </nav>
       </div>
-      <div class="breadcrumbs" aria-label="Breadcrumb">
-        <a href="{{ url_for('home') }}">Home</a>
-        {% if request.endpoint and request.endpoint.startswith('kpi_definitions') %}
-          <span class="sep">/</span>
-          <a href="{{ url_for('kpi_definitions.list_definitions') }}">Metric Definitions</a>
-          {% if request.endpoint == 'kpi_definitions.metric_overview' %}
-            <span class="sep">/</span>
-            <span>Metric Overview</span>
-          {% elif request.endpoint == 'kpi_definitions.edit_definition' %}
-            <span class="sep">/</span>
-            <span>Edit</span>
-          {% endif %}
-        {% elif request.endpoint and request.endpoint.startswith('kpi_usage') %}
-          <span class="sep">/</span>
-          <a href="{{ url_for('kpi_usage.list_usage') }}">Metric Usage</a>
-          {% if request.endpoint == 'kpi_usage.edit_usage' %}
-            <span class="sep">/</span>
-            <span>Edit</span>
-          {% endif %}
-        {% elif request.endpoint and request.endpoint.startswith('kpi_approvers') %}
-          <span class="sep">/</span>
-          <a href="{{ url_for('kpi_approvers.list_approvers') }}">Metric Approvers</a>
-        {% elif request.endpoint and request.endpoint.startswith('lineage') %}
-          <span class="sep">/</span>
-          <a href="{{ url_for('lineage.index') }}">Visual Metric Map</a>
-        {% endif %}
+      <div class="global-banner">
+        Govern Metric Definitions with Confidence: Define metrics once, enforce approvals, and track downstream usage from one control surface.
       </div>
 
       {% with messages = get_flashed_messages(with_categories=true) %}

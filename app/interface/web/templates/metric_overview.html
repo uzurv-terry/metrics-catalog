@@ -7,7 +7,10 @@
   }
 
   .metric-search-card h1,
-  .metric-overview-card h2 {
+  .metric-overview-card h2,
+  .metric-lineage-card h2,
+  .lineage-canvas-card h3,
+  .lineage-detail-card h3 {
     margin-top: 0;
   }
 
@@ -107,9 +110,165 @@
     color: var(--muted);
   }
 
+  .metric-lineage-card {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .metric-lineage-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--space-3);
+    align-items: flex-start;
+  }
+
+  .metric-lineage-head p {
+    margin: var(--space-1) 0 0;
+  }
+
+  .lineage-card {
+    border: 1px solid #e4e7ec;
+    border-radius: var(--radius-lg);
+    background: #f8faff;
+    padding: var(--space-4);
+  }
+
+  .lineage-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.7fr);
+    gap: var(--space-4);
+    align-items: start;
+  }
+
+  .lineage-canvas-wrap {
+    position: relative;
+    min-height: 520px;
+    border: 1px solid #d7dceb;
+    border-radius: var(--radius-lg);
+    background:
+      radial-gradient(circle at 20% 20%, rgba(55, 93, 180, 0.08), transparent 28%),
+      radial-gradient(circle at 85% 15%, rgba(244, 176, 0, 0.12), transparent 24%),
+      linear-gradient(180deg, #f7f9fd, #eef2f8);
+    overflow: hidden;
+  }
+
+  .lineage-graph {
+    position: relative;
+    min-height: 520px;
+    padding: var(--space-5);
+    display: grid;
+    grid-template-columns: minmax(240px, 0.75fr) minmax(120px, 0.4fr) minmax(280px, 1.1fr);
+    gap: var(--space-4);
+    align-items: center;
+  }
+
+  .lineage-column {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .lineage-column.center {
+    justify-items: center;
+  }
+
+  .lineage-node {
+    border: 1px solid #d7dceb;
+    border-radius: var(--radius-lg);
+    background: rgba(255, 255, 255, 0.92);
+    padding: var(--space-3);
+    box-shadow: var(--shadow-md);
+    cursor: pointer;
+  }
+
+  .lineage-node.focus {
+    border-color: #375db4;
+    background: linear-gradient(180deg, #fffdf4, #ffffff);
+  }
+
+  .lineage-node.kpi {
+    border-left: 6px solid #375db4;
+  }
+
+  .lineage-node.report {
+    border-left: 6px solid #ca8d00;
+  }
+
+  .lineage-node small {
+    display: block;
+    margin-top: var(--space-1);
+    color: var(--muted);
+  }
+
+  .lineage-empty {
+    display: grid;
+    place-items: center;
+    min-height: 520px;
+    padding: var(--space-5);
+    text-align: center;
+    color: var(--muted);
+  }
+
+  .lineage-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .lineage-badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+
+  .lineage-badge {
+    display: inline-block;
+    padding: 0.22rem 0.6rem;
+    border-radius: var(--radius-pill);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    background: #eef2ff;
+    color: #314585;
+  }
+
+  .lineage-detail-card dl {
+    margin: 0;
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .lineage-detail-card dt {
+    font-size: var(--font-size-xs);
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .lineage-detail-card dd {
+    margin: 0;
+    font-size: var(--font-size-sm);
+  }
+
+  .lineage-status {
+    margin-top: var(--space-2);
+    color: var(--muted);
+  }
+
   @media (max-width: 980px) {
-    .metric-overview-grid {
+    .metric-overview-grid,
+    .lineage-main {
       grid-template-columns: 1fr;
+    }
+
+    .lineage-graph {
+      grid-template-columns: 1fr;
+      min-height: 640px;
     }
   }
 </style>
@@ -237,6 +396,42 @@
       </aside>
     </div>
   </section>
+
+  <section
+    class="panel metric-lineage-card"
+    data-lineage-shell
+    data-kpi-slug="{{ definition.kpi_slug }}"
+    data-kpi-version="{{ definition.kpi_version }}"
+  >
+    <div class="metric-lineage-head">
+      <div>
+        <h2>Visual Metric Map</h2>
+        <p class="small">The lineage graph starts with this metric and shows its current downstream usage from the same overview page.</p>
+      </div>
+      <span class="metric-pill">Focused Metric: {{ definition.kpi_slug }} v{{ definition.kpi_version }}</span>
+    </div>
+
+    <section class="lineage-main">
+      <article class="lineage-card lineage-canvas-card">
+        <h3>Lineage Graph</h3>
+        <p id="lineage-status" class="small lineage-status">Loading lineage for {{ definition.kpi_name }}...</p>
+        <div id="lineage-canvas" class="lineage-canvas-wrap">
+          <div id="lineage-empty" class="lineage-empty">
+            <div>
+              <strong>Loading lineage</strong>
+              <div class="small">The graph for this metric will render automatically.</div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <aside class="lineage-card lineage-detail-card">
+        <h3>Selected Node</h3>
+        <p id="lineage-detail-empty" class="small">Click a metric or report card in the graph to inspect metadata.</p>
+        <dl id="lineage-detail-list" hidden></dl>
+      </aside>
+    </section>
+  </section>
   {% else %}
   <section class="panel metric-overview-empty">
     <strong>No metric selected</strong>
@@ -320,9 +515,162 @@
       }
     }, 250);
 
-    lookupInput.addEventListener("input", (e) => searchDefinitions(e.target.value));
-    lookupInput.addEventListener("change", (e) => applyMatch(e.target.value));
-    lookupInput.addEventListener("blur", (e) => applyMatch(e.target.value));
+    lookupInput.addEventListener("input", (event) => searchDefinitions(event.target.value));
+    lookupInput.addEventListener("change", (event) => applyMatch(event.target.value));
+    lookupInput.addEventListener("blur", (event) => applyMatch(event.target.value));
+  })();
+
+  (function () {
+    const lineageShell = document.querySelector("[data-lineage-shell]");
+    if (!lineageShell) return;
+
+    const canvas = document.getElementById("lineage-canvas");
+    const emptyState = document.getElementById("lineage-empty");
+    const statusEl = document.getElementById("lineage-status");
+    const detailEmpty = document.getElementById("lineage-detail-empty");
+    const detailList = document.getElementById("lineage-detail-list");
+    const selectedSlug = lineageShell.dataset.kpiSlug;
+    const selectedVersion = lineageShell.dataset.kpiVersion;
+    const kpiBaseUrl = `{{ url_for("lineage.kpi_lineage", kpi_slug="__slug__", kpi_version=999999) }}`;
+    let currentGraph = null;
+
+    const escapeHtml = (value) => String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
+
+    const setStatus = (message) => {
+      statusEl.textContent = message;
+    };
+
+    const renderDetail = (node) => {
+      detailEmpty.hidden = true;
+      detailList.hidden = false;
+      const entries = Object.entries(node.data || {}).filter(([, value]) => value !== null && value !== "");
+      detailList.innerHTML = `
+        <dt>Node Type</dt>
+        <dd>${escapeHtml(node.type)}</dd>
+        <dt>Label</dt>
+        <dd>${escapeHtml(node.label)}</dd>
+        ${entries.map(([key, value]) => `<dt>${escapeHtml(key.replaceAll("_", " "))}</dt><dd>${escapeHtml(value)}</dd>`).join("")}
+      `;
+    };
+
+    const drawLines = (graphEl) => {
+      const svg = graphEl.querySelector("svg");
+      const focus = graphEl.querySelector(".lineage-node.focus");
+      const targets = [...graphEl.querySelectorAll(".lineage-node.related")];
+      if (!svg || !focus || targets.length === 0) return;
+
+      const graphRect = graphEl.getBoundingClientRect();
+      const focusRect = focus.getBoundingClientRect();
+      const x1 = focusRect.right - graphRect.left;
+      const y1 = focusRect.top + (focusRect.height / 2) - graphRect.top;
+
+      svg.innerHTML = targets.map((target) => {
+        const rect = target.getBoundingClientRect();
+        const x2 = rect.left - graphRect.left;
+        const y2 = rect.top + (rect.height / 2) - graphRect.top;
+        const c1 = x1 + 40;
+        const c2 = x2 - 40;
+        return `<path d="M ${x1} ${y1} C ${c1} ${y1}, ${c2} ${y2}, ${x2} ${y2}" stroke="rgba(55,93,180,0.35)" stroke-width="3" fill="none" />`;
+      }).join("");
+    };
+
+    const renderGraph = (graph) => {
+      currentGraph = graph;
+      if (!graph.nodes.length) {
+        canvas.innerHTML = emptyState.outerHTML;
+        setStatus("No lineage found for that selection.");
+        detailEmpty.hidden = false;
+        detailList.hidden = true;
+        return;
+      }
+
+      const focusType = graph.meta.focus_type;
+      const focusNode = graph.nodes.find((node) => node.type === focusType) || graph.nodes[0];
+      const relatedNodes = graph.nodes.filter((node) => node.id !== focusNode.id);
+
+      canvas.innerHTML = `
+        <div class="lineage-graph" id="lineage-graph">
+          <svg class="lineage-svg" aria-hidden="true"></svg>
+          <div class="lineage-column center">
+            <article class="lineage-node ${escapeHtml(focusNode.type)} focus" data-node-id="${escapeHtml(focusNode.id)}">
+              <strong>${escapeHtml(focusNode.label)}</strong>
+              <small>${escapeHtml(focusNode.type === "kpi" ? "Focused Metric" : "Focused Report")}</small>
+              <div class="lineage-badge-row">
+                ${(focusNode.data.status ? `<span class="lineage-badge">${escapeHtml(focusNode.data.status)}</span>` : "")}
+                ${(focusNode.data.certification_level ? `<span class="lineage-badge">${escapeHtml(focusNode.data.certification_level)}</span>` : "")}
+                ${(focusNode.data.consumer_tool ? `<span class="lineage-badge">${escapeHtml(focusNode.data.consumer_tool)}</span>` : "")}
+              </div>
+            </article>
+          </div>
+          <div></div>
+          <div class="lineage-column">
+            ${relatedNodes.map((node) => `
+              <article class="lineage-node ${escapeHtml(node.type)} related" data-node-id="${escapeHtml(node.id)}">
+                <strong>${escapeHtml(node.label)}</strong>
+                <small>${escapeHtml(node.type === "kpi" ? "Related Metric" : "Downstream report")}</small>
+                <div class="lineage-badge-row">
+                  ${(node.data.status ? `<span class="lineage-badge">${escapeHtml(node.data.status)}</span>` : "")}
+                  ${(node.data.certification_level ? `<span class="lineage-badge">${escapeHtml(node.data.certification_level)}</span>` : "")}
+                  ${(node.data.consumer_tool ? `<span class="lineage-badge">${escapeHtml(node.data.consumer_tool)}</span>` : "")}
+                </div>
+              </article>
+            `).join("")}
+          </div>
+        </div>
+      `;
+
+      setStatus(`Loaded ${graph.meta.node_count} node(s) and ${graph.meta.edge_count} edge(s).${graph.meta.truncated ? " Results truncated for performance." : ""}`);
+
+      const graphEl = document.getElementById("lineage-graph");
+      graphEl.querySelectorAll(".lineage-node").forEach((nodeEl) => {
+        nodeEl.addEventListener("click", () => {
+          const node = graph.nodes.find((item) => item.id === nodeEl.dataset.nodeId);
+          if (node) renderDetail(node);
+        });
+      });
+
+      renderDetail(focusNode);
+      window.requestAnimationFrame(() => drawLines(graphEl));
+    };
+
+    const fetchJson = async (url, options = {}) => {
+      const response = await fetch(url, {
+        headers: { "Accept": "application/json" },
+        ...options
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Request failed");
+      }
+      return payload;
+    };
+
+    const buildKpiUrl = (slug, version) => (
+      kpiBaseUrl
+        .replace("__slug__", encodeURIComponent(slug))
+        .replace("999999", encodeURIComponent(version))
+    );
+
+    const loadMetricLineage = async () => {
+      setStatus("Loading metric lineage...");
+      const graph = await fetchJson(buildKpiUrl(selectedSlug, selectedVersion));
+      renderGraph(graph);
+    };
+
+    loadMetricLineage().catch((error) => {
+      setStatus(error.message || "Unable to load lineage.");
+    });
+
+    window.addEventListener("resize", () => {
+      const graphEl = document.getElementById("lineage-graph");
+      if (graphEl && currentGraph) {
+        window.requestAnimationFrame(() => drawLines(graphEl));
+      }
+    });
   })();
 </script>
 {% endblock %}

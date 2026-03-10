@@ -57,11 +57,12 @@ PORT=5001 python3 run.py
 ```
 
 ## App Routes
-- `/` Home
+- `/` Redirects to Metric Overview
 - `/kpi-definitions/` Metric Definitions workspace
+- `/kpi-definitions/overview` Metric Overview workspace with embedded lineage graph
 - `/kpi-usage/` Metric Usage workspace
 - `/kpi-approvers/` Metric Approvers workspace
-- `/lineage/` Visual Metric Map
+- `/lineage/` Redirects to Metric Overview
 - `/health` Data API health check (`select 1`)
 
 ## Testing

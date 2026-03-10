@@ -8,8 +8,8 @@ Primary managed entities:
 - `kpi_catalog.kpi_usage`
 - `kpi_catalog.kpi_approver`
 
-Read-only lineage endpoints:
-- `/lineage/`
+Read-only lineage UI/API:
+- embedded in `/kpi-definitions/overview`
 - `/lineage/api/kpi/<slug>/<version>`
 - `/lineage/api/report`
 - `/lineage/api/search/kpi`
@@ -174,7 +174,7 @@ Redshift implementations live in `app/infrastructure/redshift/repositories/`.
 - `kpi_definitions.py` (`/kpi-definitions/`)
 - `kpi_usage.py` (`/kpi-usage/`)
 - `kpi_approvers.py` (`/kpi-approvers/`)
-- `lineage.py` (`/lineage/`)
+- `lineage.py` (lineage API endpoints + legacy redirect from `/lineage/`)
 
 All blueprints:
 - perform form binding

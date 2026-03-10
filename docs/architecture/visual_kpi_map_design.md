@@ -73,7 +73,7 @@ app/
     blueprints/
       lineage.py
     templates/
-      lineage_map.html
+      metric_overview.html  # embedded lineage section
     static/
       lineage.js
       lineage.css
@@ -81,7 +81,7 @@ app/
 
 ## 6.2 Blueprint Endpoints
 Page shell:
-- `GET /lineage`
+- `GET /kpi-definitions/overview`
 
 JSON APIs:
 - `GET /api/lineage/kpi/<kpi_slug>/<int:kpi_version>`
