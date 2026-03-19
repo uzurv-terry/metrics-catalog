@@ -27,6 +27,7 @@ build/
 dist/
 *.egg-info/
 .eggs/
+metrics-catalog.tar
 
 # IDE/editor files
 .idea/

@@ -17,17 +17,35 @@ This guide converts the current local `python run.py` flow into a Docker workflo
 - Reuses the existing `.env` settings for Redshift Data API access.
 - Mounts the host user's `~/.aws` directory into the container so `boto3` can use the same AWS profile that already works outside Docker.
 - Publishes the app on host port `5050` by default to avoid the common macOS conflict on `5000`.
+- Binds the published port to `127.0.0.1` so the app is only reachable from the local machine by default.
+- Uses a read-only container filesystem with `/tmp` mounted as `tmpfs`.
+- Drops Linux capabilities and blocks privilege escalation inside the container.
+- Uses a Docker healthcheck that calls a lightweight Flask liveness endpoint instead of the Redshift-backed dependency check.
 
 Important constraints:
 - Do not bake AWS credentials into the image.
 - Each employee must have Docker installed and a working AWS profile on their own computer.
 - This container keeps the repo's current runtime model (`python run.py`). It is suitable for internal desktop use, not a production deployment pattern.
+- The container still runs as root because mounted AWS profile files are commonly permissioned for owner-only read access. The compose hardening above reduces risk without breaking that access pattern.
 
 ## 2. Files Added for Docker
 
 - `Dockerfile`
 - `compose.yaml`
 - `.dockerignore`
+
+## 2.1 Why This Compose File Is Safer
+
+The current `compose.yaml` improves safety in these ways:
+
+- `pull_policy: never`: avoids accidental attempts to pull `metrics-catalog:local` from a public registry.
+- `127.0.0.1:${HOST_PORT:-5050}:5000`: keeps the app local to the machine instead of exposing it to the full network.
+- `read_only: true`: prevents writes to the container filesystem.
+- `tmpfs: /tmp`: gives the app a temporary writable area without making the image writable.
+- `cap_drop: [ALL]`: removes Linux capabilities the app does not need.
+- `security_opt: no-new-privileges:true`: blocks privilege escalation.
+- `init: true`: handles signal forwarding and process reaping more cleanly.
+- `healthcheck`: verifies the Flask process is serving HTTP on `/health/live` without requiring AWS or Redshift to be available.
 
 ## 3. Prerequisites
 
@@ -97,6 +115,12 @@ docker compose build
 
 This creates the local image `metrics-catalog:local`.
 
+If you want to refresh the base image (`python:3.11-slim`) and rebuild from scratch:
+
+```bash
+docker compose build --pull --no-cache
+```
+
 ### Step 4: Start the container
 
 ```bash
@@ -120,6 +144,15 @@ docker compose down
 docker compose up -d --build
 ```
 
+If you changed `compose.yaml`, `Dockerfile`, or dependencies and want a clean rebuild:
+
+```bash
+docker compose down
+docker image rm metrics-catalog:local
+docker compose build --pull --no-cache
+docker compose up -d
+```
+
 ### Step 5: Verify the app in Docker
 
 1. Check the container is running:
@@ -128,7 +161,17 @@ docker compose up -d --build
 docker compose ps
 ```
 
-2. Check the health endpoint:
+Expected result: the service shows `healthy` after startup completes.
+
+2. Check the Docker liveness endpoint:
+
+```bash
+curl http://127.0.0.1:5050/health/live
+```
+
+If you used `HOST_PORT=5051`, change the URL to `http://127.0.0.1:5051/health/live`.
+
+3. Check the Redshift-backed dependency health endpoint:
 
 ```bash
 curl http://127.0.0.1:5050/health
@@ -136,18 +179,18 @@ curl http://127.0.0.1:5050/health
 
 If you used `HOST_PORT=5051`, change the URL to `http://127.0.0.1:5051/health`.
 
-3. Open the main pages in a browser:
+4. Open the main pages in a browser:
 
 - `http://127.0.0.1:5050/kpi-definitions/new`
 - `http://127.0.0.1:5050/kpi-usage/new`
 
-4. If the container fails to start, inspect logs:
+5. If the container fails to start, inspect logs:
 
 ```bash
 docker compose logs -f
 ```
 
-5. If you want to confirm the published port mapping:
+6. If you want to confirm the published port mapping:
 
 ```bash
 docker compose ps
@@ -176,6 +219,8 @@ After the app works on your computer, export the image so another employee can l
 ```bash
 docker save metrics-catalog:local -o metrics-catalog.tar
 ```
+
+If you rebuilt the image first, export the tar after the rebuild so the employee gets the latest image contents.
 
 ### Step 2: Share these handoff items
 
@@ -230,7 +275,7 @@ From the folder containing the employee `.env` file:
 ```bash
 docker run -d \
   --name metrics-catalog \
-  -p 5050:5000 \
+  -p 127.0.0.1:5050:5000 \
   --env-file .env \
   -e PORT=5000 \
   -e AWS_SDK_LOAD_CONFIG=1 \
@@ -240,7 +285,7 @@ docker run -d \
   metrics-catalog:local
 ```
 
-If port `5050` is busy, change the left side of `-p`, for example `-p 5051:5000`.
+If port `5050` is busy, change the left side of `-p`, for example `-p 127.0.0.1:5051:5000`.
 
 If an old container already exists on the employee machine, remove it before rerunning:
 
@@ -284,9 +329,11 @@ docker rm -f metrics-catalog
 - `AccessDeniedException`: the AWS profile does not have the required Data API or Secrets Manager permissions.
 - `ResourceNotFoundException`: `SECRET_ARN`, `CLUSTER_ID`, `DATABASE`, or region are wrong.
 - AWS profile errors inside Docker: verify the same profile works first on the host with `aws sts get-caller-identity --profile <profile>`.
+- Container shows `unhealthy`: inspect `docker compose logs -f` and test `http://127.0.0.1:5050/health/live` first. If liveness is healthy but `/health` fails, the issue is AWS or Redshift rather than Flask startup.
 - Port binding errors: use a different host port such as `HOST_PORT=5051 docker compose up -d` or `-p 5051:5000`.
 - Unexpected Docker Hub pull attempt: this repo sets `pull_policy: never` in `compose.yaml`, so rerun with the updated compose file if you still see a pull error from an older local copy.
 - Name already in use: remove the old container with `docker compose down` or `docker rm -f metrics-catalog`.
+- Rebuild did not pick up changes: use `docker compose build --pull --no-cache` and then `docker compose up -d`.
 - Container exits immediately: run `docker compose logs -f` or `docker logs metrics-catalog`.
 
 ## 10. Recommended Next Improvement
