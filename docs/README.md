@@ -15,6 +15,7 @@
 - `operations/redshift_app_connection.md`
 - `operations/redshift_connection_process.md`
 - `operations/login_steps.md`
+- `operations/docker_local_and_handoff_guide.md`
 - `operations/aws_deployment_runbook.md`
 - `operations/allowable_operations_guide.md`
 
