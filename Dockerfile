@@ -11,6 +11,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY run.py ./run.py
 
+RUN adduser --disabled-password --gecos "" appuser && \
+    chown -R appuser:appuser /app
+
 EXPOSE 5000
 
 CMD ["python", "run.py"]

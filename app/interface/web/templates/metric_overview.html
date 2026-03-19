@@ -278,7 +278,7 @@
     <h1>Metric Overview</h1>
     <p class="small">Search for a metric by name, ID, or slug, then load a read-only view of that metric version.</p>
 
-    <form method="get" class="metric-search-layout" novalidate>
+    <form method="get" class="metric-search-layout" id="metric_overview_form" novalidate>
       <div>
         <label for="metric_lookup">Find Metric</label>
         <div class="lookup-shell">
@@ -296,7 +296,7 @@
       <input id="kpi_slug" name="kpi_slug" type="hidden" value="{{ selected_metric.kpi_slug if selected_metric else '' }}">
       <input id="kpi_version" name="kpi_version" type="hidden" value="{{ selected_metric.kpi_version if selected_metric else '' }}">
       <div class="form-actions">
-        <button type="submit" class="btn btn-primary">Load Metric Overview</button>
+        <button type="submit" id="metric_overview_submit" class="btn btn-primary">Load Metric Overview</button>
         {% if selected_metric %}
         <a href="{{ url_for('kpi_definitions.metric_overview') }}" class="btn btn-secondary">Clear</a>
         {% endif %}
@@ -445,13 +445,15 @@
 {% block scripts %}
 <script>
   (function () {
+    const form = document.getElementById("metric_overview_form");
     const lookupInput = document.getElementById("metric_lookup");
     const suggestionPanel = document.getElementById("metric_lookup_suggestions");
     const slugInput = document.getElementById("kpi_slug");
     const versionInput = document.getElementById("kpi_version");
     const statusEl = document.getElementById("metric_lookup_status");
+    const submitButton = document.getElementById("metric_overview_submit");
 
-    if (!lookupInput || !suggestionPanel || !slugInput || !versionInput || !statusEl) return;
+    if (!form || !lookupInput || !suggestionPanel || !slugInput || !versionInput || !statusEl || !submitButton) return;
 
     const findMatch = (value, definitions) => {
       const q = (value || "").trim().toLowerCase();
@@ -499,6 +501,12 @@
       onType: clearSelection,
       onClear: clearSelection,
       onBlur: (value, definitions) => applySelection(findMatch(value, definitions)),
+    });
+
+    lookupInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || !event.defaultPrevented) return;
+      if (!slugInput.value || !versionInput.value) return;
+      form.requestSubmit(submitButton);
     });
   })();
 
