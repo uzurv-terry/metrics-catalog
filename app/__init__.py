@@ -60,7 +60,7 @@ def create_app() -> Flask:
         route_type = "write" if request.method in {"POST", "PUT", "PATCH", "DELETE"} else "read"
         if endpoint.startswith("lineage."):
             route_group = "lineage"
-        elif endpoint == "health":
+        elif endpoint in {"health", "health_live"}:
             route_group = "health"
         else:
             route_group = "catalog"
@@ -88,6 +88,10 @@ def create_app() -> Flask:
         rows = executor.query("select 1 as ok")
         if not rows:
             raise RuntimeError("Health check query returned no rows")
+        return {"status": "ok"}
+
+    @app.get("/health/live")
+    def health_live():
         return {"status": "ok"}
 
     return app

@@ -63,6 +63,7 @@ PORT=5001 python3 run.py
 - `/kpi-usage/` Metric Usage workspace
 - `/kpi-approvers/` Metric Approvers workspace
 - `/lineage/` Redirects to Metric Overview
+- `/health/live` Flask liveness check
 - `/health` Data API health check (`select 1`)
 
 ## Testing
