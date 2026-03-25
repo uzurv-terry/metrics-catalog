@@ -2,6 +2,7 @@ from typing import List
 
 from app.application.ports.kpi_approver_repository import KpiApproverRepository
 from app.domain.models import KpiApprover
+from app.infrastructure.redshift.repositories._sql import render_limit
 
 
 class RedshiftKpiApproverRepository(KpiApproverRepository):
@@ -9,26 +10,26 @@ class RedshiftKpiApproverRepository(KpiApproverRepository):
         self._executor = executor
 
     def list_recent(self, limit: int = 100) -> List[KpiApprover]:
-        sql = """
+        sql = f"""
             select approver_id, kpi_id, kpi_slug, kpi_version,
                    approver_name, approver_email, approver_role,
                    approval_notes, approved_at, created_at
             from kpi_catalog.kpi_approver
             order by created_at desc
-            limit cast(:limit as integer)
+            limit {render_limit(limit)}
         """
-        rows = self._executor.query(sql, {"limit": limit})
+        rows = self._executor.query(sql)
         return [self._map(row) for row in rows]
 
     def list_recent_summary(self, limit: int = 100) -> list[dict]:
-        sql = """
+        sql = f"""
             select approver_id, kpi_id, kpi_slug, kpi_version,
                    approver_name, approver_role, approved_at
             from kpi_catalog.kpi_approver
             order by created_at desc
-            limit cast(:limit as integer)
+            limit {render_limit(limit)}
         """
-        return self._executor.query(sql, {"limit": limit})
+        return self._executor.query(sql)
 
     def insert(self, approver: KpiApprover) -> None:
         sql = """

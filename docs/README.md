@@ -2,6 +2,7 @@
 
 ## Architecture
 - `architecture/kpi_catalog_technical_design.md`
+- `architecture/kpi_catalog_report_intersection_design.md`
 - `architecture/kpi_catalog_two_table_design.md`
 - `architecture/kpi_web_form_solution_summary.md`
 - `architecture/kpi_web_form_technical_breakdown.md`
@@ -16,6 +17,7 @@
 - `operations/redshift_connection_process.md`
 - `operations/login_steps.md`
 - `operations/docker_local_and_handoff_guide.md`
+- `operations/kpi_catalog_report_intersection_migration.sql`
 - `operations/aws_deployment_runbook.md`
 - `operations/allowable_operations_guide.md`
 

@@ -7,9 +7,7 @@ class LineageRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_report_lineage_rows(
-        self, consumer_tool: str, reference_name: str, max_edges: int
-    ) -> list[dict]:
+    def get_report_lineage_rows(self, report_id: int, max_edges: int) -> list[dict]:
         raise NotImplementedError
 
     @abstractmethod
@@ -19,4 +17,3 @@ class LineageRepository(ABC):
     @abstractmethod
     def search_reports(self, query: str, limit: int) -> list[dict]:
         raise NotImplementedError
-

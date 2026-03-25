@@ -1,0 +1,217 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="workspace">
+  <section class="panel">
+    <h2>Create Note</h2>
+    <p class="small">Attach notes to either a metric definition version or a report.</p>
+    <form method="post" class="form-grid" data-unsaved-warning>
+      {{ form.hidden_tag() }}
+      {{ form.kpi_id() }}
+      {{ form.kpi_slug() }}
+      {{ form.report_id() }}
+      <div>
+        {{ form.note_scope.label }}
+        {{ form.note_scope() }}
+      </div>
+      <div>
+        {{ form.note_type.label }}
+        {{ form.note_type() }}
+      </div>
+      <div class="full-row" id="metric_lookup_shell">
+        <label for="note_metric_lookup">Find Metric</label>
+        <div class="lookup-shell">
+          <input id="note_metric_lookup" type="text" autocomplete="off" placeholder="Start typing metric name, slug, or id">
+          <div id="note_metric_lookup_suggestions" class="lookup-suggestions" hidden></div>
+        </div>
+        <div id="note_metric_lookup_status" class="small">Type at least 2 characters to search metrics.</div>
+      </div>
+      <div class="full-row" id="report_lookup_shell" hidden>
+        <label for="note_report_lookup">Find Report</label>
+        <div class="lookup-shell">
+          <input id="note_report_lookup" type="text" autocomplete="off" placeholder="Start typing report name, slug, or tool">
+          <div id="note_report_lookup_suggestions" class="lookup-suggestions" hidden></div>
+        </div>
+        <div id="note_report_lookup_status" class="small">Type at least 2 characters to search reports.</div>
+      </div>
+      <div>
+        {{ form.kpi_version.label }}
+        {{ form.kpi_version() }}
+      </div>
+      <div>
+        {{ form.author_name.label }}
+        {{ form.author_name() }}
+      </div>
+      <div>
+        {{ form.author_email.label }}
+        {{ form.author_email() }}
+      </div>
+      <div>
+        <label>{{ form.is_active() }} {{ form.is_active.label.text }}</label>
+      </div>
+      <div class="full-row">
+        {{ form.note_title.label }}
+        {{ form.note_title() }}
+      </div>
+      <div class="full-row">
+        {{ form.note_body.label }}
+        {{ form.note_body(rows=5) }}
+      </div>
+      <div class="form-actions full-row">{{ form.submit() }}</div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Recent Notes</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Scope</th>
+            <th>Parent</th>
+            <th>Type</th>
+            <th>Title</th>
+            <th>Author</th>
+            <th>Active</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for note in notes %}
+          <tr>
+            <td>{{ note.note_id }}</td>
+            <td>{{ note.note_scope }}</td>
+            <td>
+              {% if note.note_scope == 'metric_definition' %}
+              {{ note.kpi_slug }} v{{ note.kpi_version }}
+              {% else %}
+              {{ note.report_name or note.report_id }}
+              {% endif %}
+            </td>
+            <td>{{ note.note_type }}</td>
+            <td>{{ note.note_title }}</td>
+            <td>{{ note.author_name }}</td>
+            <td>{{ note.is_active }}</td>
+            <td>{{ note.created_at }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  (function () {
+    const scopeInput = document.getElementById("note_scope");
+    const metricShell = document.getElementById("metric_lookup_shell");
+    const reportShell = document.getElementById("report_lookup_shell");
+    const metricStatus = document.getElementById("note_metric_lookup_status");
+    const reportStatus = document.getElementById("note_report_lookup_status");
+    const kpiIdInput = document.getElementById("kpi_id");
+    const kpiSlugInput = document.getElementById("kpi_slug");
+    const kpiVersionInput = document.getElementById("kpi_version");
+    const reportIdInput = document.getElementById("report_id");
+
+    const syncScope = () => {
+      const scope = scopeInput.value;
+      const metricMode = scope === "metric_definition";
+      metricShell.hidden = !metricMode;
+      reportShell.hidden = metricMode;
+      if (metricMode) {
+        reportIdInput.value = "";
+        reportStatus.textContent = "Type at least 2 characters to search reports.";
+      } else {
+        kpiIdInput.value = "";
+        kpiSlugInput.value = "";
+        kpiVersionInput.value = "";
+        metricStatus.textContent = "Type at least 2 characters to search metrics.";
+      }
+    };
+
+    scopeInput.addEventListener("change", syncScope);
+    syncScope();
+  })();
+
+  (function () {
+    const lookupInput = document.getElementById("note_metric_lookup");
+    const suggestionPanel = document.getElementById("note_metric_lookup_suggestions");
+    const kpiIdInput = document.getElementById("kpi_id");
+    const kpiSlugInput = document.getElementById("kpi_slug");
+    const kpiVersionInput = document.getElementById("kpi_version");
+    const statusEl = document.getElementById("note_metric_lookup_status");
+
+    if (!lookupInput || !suggestionPanel || !kpiIdInput || !kpiSlugInput || !kpiVersionInput || !statusEl) return;
+
+    const applySelection = (match) => {
+      if (!match) return;
+      kpiIdInput.value = match.kpi_id;
+      kpiSlugInput.value = match.kpi_slug;
+      kpiVersionInput.value = match.kpi_version;
+      statusEl.textContent = `Attached to ${match.kpi_name} (v${match.kpi_version}).`;
+    };
+
+    window.createLookupController({
+      input: lookupInput,
+      panel: suggestionPanel,
+      statusEl,
+      idleMessage: "Type at least 2 characters to search metrics.",
+      searchingMessage: "Searching metrics...",
+      emptyMessage: "No metrics found.",
+      errorMessage: "Metric search failed. Try again.",
+      foundMessage: (items) => `${items.length} metric match(es) found.`,
+      fetchResults: async (query, signal) => {
+        const response = await fetch(`{{ url_for("lineage.search_kpis") }}?q=${encodeURIComponent(query)}`, {
+          signal,
+          headers: { "Accept": "application/json" }
+        });
+        const payload = await response.json();
+        return payload.results || [];
+      },
+      primaryText: (item) => item.kpi_name,
+      secondaryText: (item) => `${item.kpi_id} | ${item.kpi_slug} | v${item.kpi_version}`,
+      inputValue: (item) => item.kpi_name,
+      onSelect: applySelection,
+    });
+  })();
+
+  (function () {
+    const lookupInput = document.getElementById("note_report_lookup");
+    const suggestionPanel = document.getElementById("note_report_lookup_suggestions");
+    const reportIdInput = document.getElementById("report_id");
+    const statusEl = document.getElementById("note_report_lookup_status");
+
+    if (!lookupInput || !suggestionPanel || !reportIdInput || !statusEl) return;
+
+    const applySelection = (match) => {
+      if (!match) return;
+      reportIdInput.value = match.report_id;
+      statusEl.textContent = `Attached to ${match.report_name} (${match.consumer_tool}).`;
+    };
+
+    window.createLookupController({
+      input: lookupInput,
+      panel: suggestionPanel,
+      statusEl,
+      idleMessage: "Type at least 2 characters to search reports.",
+      searchingMessage: "Searching reports...",
+      emptyMessage: "No reports found.",
+      errorMessage: "Report search failed. Try again.",
+      foundMessage: (items) => `${items.length} report match(es) found.`,
+      fetchResults: async (query, signal) => {
+        const response = await fetch(`{{ url_for("lineage.search_reports") }}?q=${encodeURIComponent(query)}`, {
+          signal,
+          headers: { "Accept": "application/json" }
+        });
+        const payload = await response.json();
+        return payload.results || [];
+      },
+      primaryText: (item) => item.report_name,
+      secondaryText: (item) => `${item.consumer_tool} | ${item.report_slug} | ${item.report_type}`,
+      inputValue: (item) => item.report_name,
+      onSelect: applySelection,
+    });
+  })();
+</script>
+{% endblock %}

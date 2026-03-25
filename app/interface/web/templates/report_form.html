@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="workspace">
+  <section class="panel">
+    <h1>{% if is_edit %}Edit Report{% else %}New Report{% endif %}</h1>
+    <form method="post" class="form-grid">
+      {{ form.hidden_tag() }}
+      <div>
+        {{ form.report_name.label }}
+        {{ form.report_name() }}
+      </div>
+      <div>
+        {{ form.report_type.label }}
+        {{ form.report_type() }}
+      </div>
+      <div>
+        {{ form.consumer_tool.label }}
+        {{ form.consumer_tool() }}
+      </div>
+      <div>
+        {{ form.status.label }}
+        {{ form.status() }}
+      </div>
+      <div class="full-row">
+        {{ form.report_url.label }}
+        {{ form.report_url() }}
+      </div>
+      <div>
+        {{ form.source_system.label }}
+        {{ form.source_system() }}
+      </div>
+      <div>
+        {{ form.owner_person.label }}
+        {{ form.owner_person() }}
+      </div>
+      <div>
+        {{ form.owner_team.label }}
+        {{ form.owner_team() }}
+      </div>
+      <div class="form-actions full-row">{{ form.submit() }}</div>
+    </form>
+  </section>
+
+  {% if is_edit and report %}
+  <section class="panel">
+    <h2>Report Notes</h2>
+    <p class="small">Add notes that belong to this report itself, not to one specific metric usage row.</p>
+
+    <form method="post" action="{{ url_for('reports.create_report_note', report_id=report.report_id) }}" class="form-grid">
+      {{ note_form.hidden_tag() }}
+      <input type="hidden" name="{{ note_form.note_scope.name }}" value="report">
+      <div>
+        {{ note_form.note_type.label }}
+        {{ note_form.note_type() }}
+      </div>
+      <div>
+        {{ note_form.note_title.label }}
+        {{ note_form.note_title() }}
+      </div>
+      <div class="full-row">
+        {{ note_form.note_body.label }}
+        {{ note_form.note_body(rows=4) }}
+      </div>
+      <div>
+        {{ note_form.author_name.label }}
+        {{ note_form.author_name() }}
+      </div>
+      <div>
+        {{ note_form.author_email.label }}
+        {{ note_form.author_email() }}
+      </div>
+      <div>
+        <label class="checkbox-inline">{{ note_form.is_active() }} Active</label>
+      </div>
+      <div class="form-actions full-row">{{ note_form.submit(value='Add Report Note') }}</div>
+    </form>
+
+    {% if report_notes %}
+    <div style="margin-top: var(--space-6); display: grid; gap: var(--space-4);">
+      {% for note in report_notes %}
+      <article class="help-card">
+        <h4>{{ note.note_title or note.note_type|replace('_', ' ')|title }}</h4>
+        <div class="small">{{ note.author_name }} | {{ note.created_at }}</div>
+        <p style="white-space: pre-wrap;">{{ note.note_body }}</p>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="small" style="margin-top: var(--space-5);">No active report notes yet.</p>
+    {% endif %}
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

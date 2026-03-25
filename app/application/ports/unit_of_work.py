@@ -4,6 +4,8 @@ from app.application.ports.kpi_definition_repository import KpiDefinitionReposit
 from app.application.ports.kpi_approver_repository import KpiApproverRepository
 from app.application.ports.kpi_usage_repository import KpiUsageRepository
 from app.application.ports.lineage_repository import LineageRepository
+from app.application.ports.report_repository import ReportRepository
+from app.application.ports.catalog_note_repository import CatalogNoteRepository
 
 
 class UnitOfWork(ABC):
@@ -11,6 +13,8 @@ class UnitOfWork(ABC):
     usage: KpiUsageRepository
     approvers: KpiApproverRepository
     lineage: LineageRepository
+    reports: ReportRepository
+    notes: CatalogNoteRepository
 
     @abstractmethod
     def __enter__(self):

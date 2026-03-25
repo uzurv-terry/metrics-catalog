@@ -7,12 +7,8 @@ class KpiUsageDTO:
     kpi_id: str
     kpi_slug: str
     kpi_version: int
+    report_id: int
     usage_type: str
-    consumer_tool: str
-    reference_name: str
-    reference_url: Optional[str] = None
-    source_system: Optional[str] = None
-    context_notes: Optional[str] = None
     default_chart_type: Optional[str] = None
     approved_visualizations: Optional[str] = None
     preferred_dimensions: Optional[str] = None

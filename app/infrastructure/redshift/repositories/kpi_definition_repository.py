@@ -2,6 +2,7 @@ from typing import List, Optional
 
 from app.application.ports.kpi_definition_repository import KpiDefinitionRepository
 from app.domain.models import KpiDefinition
+from app.infrastructure.redshift.repositories._sql import render_limit
 
 
 class RedshiftKpiDefinitionRepository(KpiDefinitionRepository):
@@ -63,7 +64,7 @@ class RedshiftKpiDefinitionRepository(KpiDefinitionRepository):
         return self._map(rows[0]) if rows else None
 
     def list_recent(self, limit: int = 100) -> List[KpiDefinition]:
-        sql = """
+        sql = f"""
             select kpi_id, kpi_name, kpi_slug, kpi_version, business_definition,
                    owner_person, owner_team, status, certification_level, formula,
                    business_question, effective_start_date, effective_end_date,
@@ -73,20 +74,20 @@ class RedshiftKpiDefinitionRepository(KpiDefinitionRepository):
                    created_at, updated_at
             from kpi_catalog.kpi_definition
             order by created_at desc
-            limit cast(:limit as integer)
+            limit {render_limit(limit)}
         """
-        rows = self._executor.query(sql, {"limit": limit})
+        rows = self._executor.query(sql)
         return [self._map(row) for row in rows]
 
     def list_recent_summary(self, limit: int = 100) -> list[dict]:
-        sql = """
+        sql = f"""
             select kpi_id, kpi_slug, kpi_version, kpi_name,
                    status, certification_level, owner_team, created_at
             from kpi_catalog.kpi_definition
             order by created_at desc
-            limit cast(:limit as integer)
+            limit {render_limit(limit)}
         """
-        return self._executor.query(sql, {"limit": limit})
+        return self._executor.query(sql)
 
     def insert(self, definition: KpiDefinition) -> None:
         sql = """

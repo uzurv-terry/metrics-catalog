@@ -1,4 +1,7 @@
-# KPI Catalog Two-Table Design (Aligned to Technical Design)
+# KPI Catalog Two-Table Design (Historical Reference)
+
+> This document reflects the earlier two-table model.
+> The proposed target-state design with a formal `report` table is documented in `kpi_catalog_report_intersection_design.md`.
 
 ## Objective
 Model KPI governance with two Redshift tables:

@@ -40,21 +40,19 @@ class LineageService:
         self._cache[cache_key] = (time.time(), graph)
         return graph
 
-    def get_report_lineage(self, consumer_tool: str, reference_name: str) -> LineageGraphDTO:
-        if not consumer_tool.strip():
-            raise ValidationError("consumer_tool is required")
-        if not reference_name.strip():
-            raise ValidationError("reference_name is required")
+    def get_report_lineage(self, report_id: int) -> LineageGraphDTO:
+        if report_id < 1:
+            raise ValidationError("report_id must be >= 1")
 
-        cache_key = f"report:{consumer_tool.lower()}:{reference_name.lower()}"
+        cache_key = f"report:{report_id}"
         cached = self._get_cached(cache_key)
         if cached is not None:
             return cached
 
         with self._uow_factory() as uow:
-            rows = uow.lineage.get_report_lineage_rows(consumer_tool, reference_name, self._max_edges)
+            rows = uow.lineage.get_report_lineage_rows(report_id, self._max_edges)
 
-        graph = self._build_report_graph(rows, consumer_tool, reference_name)
+        graph = self._build_report_graph(rows, report_id)
         self._cache[cache_key] = (time.time(), graph)
         return graph
 
@@ -128,18 +126,21 @@ class LineageService:
         )
 
         for row in rows:
-            if row.get("usage_id") is None or row.get("consumer_tool") is None or row.get("reference_name") is None:
+            if row.get("usage_id") is None or row.get("consumer_tool") is None or row.get("report_name") is None:
                 continue
-            report_node_id = f"asset:{row['consumer_tool']}:{row['reference_name'].strip().lower()}"
+            report_node_id = f"report:{row['report_id']}"
             if report_node_id not in nodes and len(nodes) < self._max_nodes:
                 nodes[report_node_id] = LineageNodeDTO(
                     id=report_node_id,
                     type="report",
-                    label=row["reference_name"],
+                    label=row["report_name"],
                     data={
+                        "report_id": int(row["report_id"]),
                         "consumer_tool": row["consumer_tool"],
-                        "reference_name": row["reference_name"],
-                        "reference_url": row.get("reference_url"),
+                        "report_name": row["report_name"],
+                        "report_slug": row.get("report_slug"),
+                        "reference_url": row.get("report_url"),
+                        "report_type": row.get("report_type"),
                         "usage_type": row["usage_type"],
                     },
                 )
@@ -153,7 +154,7 @@ class LineageService:
                             "usage_id": int(row["usage_id"]),
                             "usage_type": row["usage_type"],
                             "consumer_tool": row["consumer_tool"],
-                            "reference_url": row.get("reference_url"),
+                            "reference_url": row.get("report_url"),
                         },
                     )
                 )
@@ -170,16 +171,14 @@ class LineageService:
             },
         )
 
-    def _build_report_graph(
-        self, rows: list[dict], consumer_tool: str, reference_name: str
-    ) -> LineageGraphDTO:
+    def _build_report_graph(self, rows: list[dict], report_id: int) -> LineageGraphDTO:
         if not rows:
             return LineageGraphDTO(
                 nodes=[],
                 edges=[],
                 meta={
                     "focus_type": "report",
-                    "focus_key": f"{consumer_tool}:{reference_name}",
+                    "focus_key": f"report:{report_id}",
                     "node_count": 0,
                     "edge_count": 0,
                     "truncated": False,
@@ -190,15 +189,18 @@ class LineageService:
         edges: list[LineageEdgeDTO] = []
 
         first = rows[0]
-        report_node_id = f"asset:{first['consumer_tool']}:{first['reference_name'].strip().lower()}"
+        report_node_id = f"report:{first['report_id']}"
         nodes[report_node_id] = LineageNodeDTO(
             id=report_node_id,
             type="report",
-            label=first["reference_name"],
+            label=first["report_name"],
             data={
+                "report_id": int(first["report_id"]),
                 "consumer_tool": first["consumer_tool"],
-                "reference_name": first["reference_name"],
-                "reference_url": first.get("reference_url"),
+                "report_name": first["report_name"],
+                "report_slug": first.get("report_slug"),
+                "reference_url": first.get("report_url"),
+                "report_type": first.get("report_type"),
                 "usage_type": first["usage_type"],
             },
         )
@@ -229,7 +231,7 @@ class LineageService:
                             "usage_id": int(row["usage_id"]),
                             "usage_type": row["usage_type"],
                             "consumer_tool": row["consumer_tool"],
-                            "reference_url": row.get("reference_url"),
+                            "reference_url": row.get("report_url"),
                         },
                     )
                 )
@@ -239,7 +241,7 @@ class LineageService:
             edges=edges,
             meta={
                 "focus_type": "report",
-                "focus_key": f"{consumer_tool}:{reference_name}",
+                "focus_key": f"report:{report_id}",
                 "node_count": len(nodes),
                 "edge_count": len(edges),
                 "truncated": len(rows) >= self._max_edges or len(nodes) >= self._max_nodes,

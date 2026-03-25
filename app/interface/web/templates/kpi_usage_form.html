@@ -2,11 +2,12 @@
 {% block content %}
 <section class="panel">
   <h1>{% if is_edit %}Edit Metric Usage{% else %}New Metric Usage{% endif %}</h1>
-  <p class="small">Map a metric version to a dashboard/report/app usage surface.</p>
+  <p class="small">Map a metric version to an existing report.</p>
   <p class="small"><strong>Required</strong> fields are labeled with "(Required)".</p>
 
   <form method="post" class="form-grid" data-unsaved-warning>
     {{ form.hidden_tag() }}
+    {{ form.report_id() }}
     {% if form.errors %}
     <div class="error-summary full-row" role="alert">
       <h3>Fix the following fields before saving:</h3>
@@ -44,31 +45,19 @@
       {% for error in form.usage_type.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
     </div>
 
-    <div>
-      {{ form.consumer_tool.label }}
-      {{ form.consumer_tool() }}
-      {% for error in form.consumer_tool.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
-    </div>
-
-    <div>
-      {{ form.reference_name.label }}
-      {{ form.reference_name() }}
-      {% for error in form.reference_name.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
-    </div>
-
     <div class="full-row">
-      {{ form.reference_url.label }}
-      {{ form.reference_url() }}
-    </div>
-
-    <div>
-      {{ form.source_system.label }}
-      {{ form.source_system() }}
-    </div>
-
-    <div class="full-row">
-      {{ form.context_notes.label }}
-      {{ form.context_notes(rows=2) }}
+      <label for="report_lookup">Find Report</label>
+      <div class="lookup-shell">
+        <input id="report_lookup" type="text" autocomplete="off" value="{{ report_label or '' }}" placeholder="Start typing report name, slug, or tool">
+        <div id="report_lookup_suggestions" class="lookup-suggestions" hidden></div>
+      </div>
+      <div id="report_lookup_status" class="small">
+        {% if report_label %}
+        Linked to {{ report_label }}.
+        {% else %}
+        Type at least 2 characters to search reports.
+        {% endif %}
+      </div>
     </div>
 
     <div>
@@ -99,4 +88,52 @@
     <div class="form-actions full-row">{{ form.submit() }}</div>
   </form>
 </section>
+{% endblock %}
+{% block scripts %}
+<script>
+  (function () {
+    const lookupInput = document.getElementById("report_lookup");
+    const suggestionPanel = document.getElementById("report_lookup_suggestions");
+    const reportIdInput = document.getElementById("report_id");
+    const statusEl = document.getElementById("report_lookup_status");
+
+    if (!lookupInput || !suggestionPanel || !reportIdInput || !statusEl) return;
+
+    const findMatch = (value, reports) => {
+      const q = (value || "").trim().toLowerCase();
+      if (!q) return null;
+      return reports.find((r) => r.report_name.toLowerCase() === q || r.report_slug.toLowerCase() === q);
+    };
+
+    const applySelection = (match) => {
+      if (!match) return;
+      reportIdInput.value = match.report_id;
+      statusEl.textContent = `Linked to ${match.report_name} (${match.consumer_tool}).`;
+    };
+
+    window.createLookupController({
+      input: lookupInput,
+      panel: suggestionPanel,
+      statusEl,
+      idleMessage: "Type at least 2 characters to search reports.",
+      searchingMessage: "Searching reports...",
+      emptyMessage: "No reports found.",
+      errorMessage: "Report search failed. Try again.",
+      foundMessage: (reports) => `${reports.length} report match(es) found.`,
+      fetchResults: async (query, signal) => {
+        const response = await fetch(`{{ url_for("lineage.search_reports") }}?q=${encodeURIComponent(query)}`, {
+          signal,
+          headers: { "Accept": "application/json" }
+        });
+        const payload = await response.json();
+        return payload.results || [];
+      },
+      primaryText: (item) => item.report_name,
+      secondaryText: (item) => `${item.consumer_tool} | ${item.report_slug} | ${item.report_type}`,
+      inputValue: (item) => item.report_name,
+      onSelect: applySelection,
+      onBlur: (value, reports) => applySelection(findMatch(value, reports)),
+    });
+  })();
+</script>
 {% endblock %}

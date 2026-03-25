@@ -44,6 +44,9 @@ class KpiUsageService:
             definition = uow.definitions.get_by_identity(first.kpi_id, first.kpi_slug, first.kpi_version)
             if definition is None:
                 raise ValidationError("Referenced metric definition does not exist for provided id/slug/version")
+            report = uow.reports.get_by_report_id(first.report_id)
+            if report is None:
+                raise ValidationError("Referenced report does not exist")
 
             usages: list[KpiUsage] = []
             for dto in dtos:
@@ -51,10 +54,11 @@ class KpiUsageService:
                     dto.kpi_id != first.kpi_id
                     or dto.kpi_slug != first.kpi_slug
                     or dto.kpi_version != first.kpi_version
+                    or dto.report_id != first.report_id
                 ):
-                    raise ValidationError("All usage rows in a batch must reference the same metric identity")
+                    raise ValidationError("All usage rows in a batch must reference the same metric identity and report")
 
-                if dto.consumer_tool == "tableau" and dto.usage_type == "dashboard":
+                if report.consumer_tool == "tableau" and report.report_type == "dashboard":
                     if definition.status != "active" or definition.certification_level != "certified":
                         raise ValidationError("Tableau dashboard usage requires an active + certified metric")
 
@@ -63,12 +67,8 @@ class KpiUsageService:
                         kpi_id=dto.kpi_id,
                         kpi_slug=dto.kpi_slug,
                         kpi_version=dto.kpi_version,
+                        report_id=dto.report_id,
                         usage_type=dto.usage_type,
-                        consumer_tool=dto.consumer_tool,
-                        reference_name=dto.reference_name,
-                        reference_url=dto.reference_url,
-                        source_system=dto.source_system,
-                        context_notes=dto.context_notes,
                         default_chart_type=dto.default_chart_type,
                         approved_visualizations=dto.approved_visualizations,
                         preferred_dimensions=dto.preferred_dimensions,
@@ -91,8 +91,11 @@ class KpiUsageService:
             definition = uow.definitions.get_by_identity(dto.kpi_id, dto.kpi_slug, dto.kpi_version)
             if definition is None:
                 raise ValidationError("Referenced metric definition does not exist for provided id/slug/version")
+            report = uow.reports.get_by_report_id(dto.report_id)
+            if report is None:
+                raise ValidationError("Referenced report does not exist")
 
-            if dto.consumer_tool == "tableau" and dto.usage_type == "dashboard":
+            if report.consumer_tool == "tableau" and report.report_type == "dashboard":
                 if definition.status != "active" or definition.certification_level != "certified":
                     raise ValidationError("Tableau dashboard usage requires an active + certified metric")
 
@@ -101,12 +104,8 @@ class KpiUsageService:
                 kpi_id=dto.kpi_id,
                 kpi_slug=dto.kpi_slug,
                 kpi_version=dto.kpi_version,
+                report_id=dto.report_id,
                 usage_type=dto.usage_type,
-                consumer_tool=dto.consumer_tool,
-                reference_name=dto.reference_name,
-                reference_url=dto.reference_url,
-                source_system=dto.source_system,
-                context_notes=dto.context_notes,
                 default_chart_type=dto.default_chart_type,
                 approved_visualizations=dto.approved_visualizations,
                 preferred_dimensions=dto.preferred_dimensions,

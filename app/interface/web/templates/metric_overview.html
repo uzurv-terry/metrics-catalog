@@ -338,19 +338,77 @@
           <div class="metric-usage-list">
             {% for usage in usage_rows %}
             <div class="metric-usage-item">
-              <strong>{{ usage.reference_name }}</strong>
-              <div class="small">{{ usage.consumer_tool }} | {{ usage.usage_type }}</div>
-              {% if usage.reference_url %}
-              <div class="small"><a href="{{ usage.reference_url }}" target="_blank" rel="noreferrer">Open linked report</a></div>
+              <strong>{{ usage.report_name }}</strong>
+              <div class="small">{{ usage.consumer_tool }} | {{ usage.report_type }} | {{ usage.usage_type }}</div>
+              {% if usage.report_url %}
+              <div class="small"><a href="{{ usage.report_url }}" target="_blank" rel="noreferrer">Open linked report</a></div>
               {% endif %}
-              {% if usage.context_notes %}
-              <div class="small">{{ usage.context_notes }}</div>
+              <div class="small"><a href="{{ url_for('reports.edit_report', report_id=usage.report_id) }}">Open report record</a></div>
+              {% if report_notes_by_report.get(usage.report_id) %}
+              <div class="small"><strong>Report Notes:</strong></div>
+              {% for note in report_notes_by_report.get(usage.report_id, []) %}
+              <div class="small">
+                {{ note.note_type }}{% if note.note_title %}: {{ note.note_title }}{% endif %} - {{ note.note_body }}
+              </div>
+              {% endfor %}
               {% endif %}
             </div>
             {% endfor %}
           </div>
           {% else %}
           <p>No reports or downstream usage mappings are currently tied to this metric.</p>
+          {% endif %}
+        </div>
+
+        <div class="metric-overview-block">
+          <h3>Metric Notes</h3>
+          <form method="post" class="form-grid" style="margin-bottom: var(--space-4);">
+            {{ note_form.hidden_tag() }}
+            <input type="hidden" name="kpi_slug" value="{{ definition.kpi_slug }}">
+            <input type="hidden" name="kpi_version" value="{{ definition.kpi_version }}">
+            <input type="hidden" name="{{ note_form.note_scope.name }}" value="metric_definition">
+            {{ note_form.kpi_id(type='hidden') }}
+            {{ note_form.kpi_slug(type='hidden') }}
+            {{ note_form.kpi_version(type='hidden') }}
+            <div>
+              {{ note_form.note_type.label }}
+              {{ note_form.note_type() }}
+            </div>
+            <div>
+              {{ note_form.note_title.label }}
+              {{ note_form.note_title() }}
+            </div>
+            <div class="full-row">
+              {{ note_form.note_body.label }}
+              {{ note_form.note_body(rows=3) }}
+              {% for error in note_form.note_body.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+            </div>
+            <div>
+              {{ note_form.author_name.label }}
+              {{ note_form.author_name() }}
+              {% for error in note_form.author_name.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+            </div>
+            <div>
+              {{ note_form.author_email.label }}
+              {{ note_form.author_email() }}
+            </div>
+            <div>
+              <label class="checkbox-inline">{{ note_form.is_active() }} Active</label>
+            </div>
+            <div class="form-actions full-row">{{ note_form.submit(value='Add Metric Note') }}</div>
+          </form>
+          {% if metric_notes %}
+          <div class="metric-usage-list">
+            {% for note in metric_notes %}
+            <div class="metric-usage-item">
+              <strong>{{ note.note_title or note.note_type }}</strong>
+              <div class="small">{{ note.author_name }} | {{ note.created_at }}</div>
+              <div class="small">{{ note.note_body }}</div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p>No active metric notes are currently attached to this metric version.</p>
           {% endif %}
         </div>
       </div>

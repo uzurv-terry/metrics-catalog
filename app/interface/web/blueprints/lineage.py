@@ -25,10 +25,11 @@ def kpi_lineage(kpi_slug: str, kpi_version: int):
 @bp.get("/api/report")
 def report_lineage():
     service = current_app.extensions["services"]["lineage"]
-    consumer_tool = request.args.get("consumer_tool", "")
-    reference_name = request.args.get("reference_name", "")
+    report_id_raw = request.args.get("report_id", "").strip()
     try:
-        graph = service.get_report_lineage(consumer_tool, reference_name)
+        if not report_id_raw:
+            raise ValidationError("report_id is required")
+        graph = service.get_report_lineage(int(report_id_raw))
         return jsonify(asdict(graph))
     except ValidationError as exc:
         return jsonify({"error": str(exc)}), 400

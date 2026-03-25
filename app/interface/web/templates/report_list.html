@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="workspace">
+  <section class="panel">
+    <h2>Create Report</h2>
+    <p class="small">Create the formal downstream report/dashboard/app record before mapping metrics to it.</p>
+
+    <form method="post" class="form-grid">
+      {{ form.hidden_tag() }}
+      <div>
+        {{ form.report_name.label }}
+        {{ form.report_name() }}
+      </div>
+      <div>
+        {{ form.report_type.label }}
+        {{ form.report_type() }}
+      </div>
+      <div>
+        {{ form.consumer_tool.label }}
+        {{ form.consumer_tool() }}
+      </div>
+      <div>
+        {{ form.status.label }}
+        {{ form.status() }}
+      </div>
+      <div class="full-row">
+        {{ form.report_url.label }}
+        {{ form.report_url() }}
+      </div>
+      <div>
+        {{ form.source_system.label }}
+        {{ form.source_system() }}
+      </div>
+      <div>
+        {{ form.owner_person.label }}
+        {{ form.owner_person() }}
+      </div>
+      <div>
+        {{ form.owner_team.label }}
+        {{ form.owner_team() }}
+      </div>
+      <div class="form-actions full-row">{{ form.submit() }}</div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Reports</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Tool</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for report in reports %}
+          <tr>
+            <td>{{ report.report_id }}</td>
+            <td>{{ report.report_name }}</td>
+            <td>{{ report.consumer_tool }}</td>
+            <td>{{ report.report_type }}</td>
+            <td>{{ report.status }}</td>
+            <td>{{ report.created_at }}</td>
+            <td><a href="{{ url_for('reports.edit_report', report_id=report.report_id) }}">Edit / Notes</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

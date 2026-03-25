@@ -8,17 +8,14 @@ bp = Blueprint("kpi_usage", __name__, url_prefix="/kpi-usage")
 USAGE_LIST_LIMIT = 100
 
 
-def _dto_from_form(form: KpiUsageForm, selected_tool: str | None = None) -> KpiUsageDTO:
+def _dto_from_form(form: KpiUsageForm) -> KpiUsageDTO:
+    report_id = (form.report_id.data or "").strip()
     return KpiUsageDTO(
         kpi_id=form.kpi_id.data,
         kpi_slug=form.kpi_slug.data,
         kpi_version=form.kpi_version.data,
+        report_id=int(report_id),
         usage_type=form.usage_type.data,
-        consumer_tool=selected_tool or form.consumer_tool.data,
-        reference_name=form.reference_name.data,
-        reference_url=form.reference_url.data,
-        source_system=form.source_system.data,
-        context_notes=form.context_notes.data,
         default_chart_type=form.default_chart_type.data,
         approved_visualizations=form.approved_visualizations.data,
         preferred_dimensions=form.preferred_dimensions.data,
@@ -33,19 +30,9 @@ def list_usage():
     form = KpiUsageForm()
 
     if form.validate_on_submit():
-        selected_tools = list(dict.fromkeys(form.consumer_tools.data or []))
-        if not selected_tools:
-            flash("Select at least one Consumer Tool.", "error")
-            usage_rows = service.list_recent_summary(limit=USAGE_LIST_LIMIT)
-            return render_template(
-                "kpi_usage_list.html",
-                usage_rows=usage_rows,
-                form=form,
-            )
-
         try:
-            service.create_many([_dto_from_form(form, selected_tool=tool) for tool in selected_tools])
-            flash(f"Metric usage created for {len(selected_tools)} consumer tool(s)", "success")
+            service.create(_dto_from_form(form))
+            flash("Metric usage created", "success")
             return redirect(url_for("kpi_usage.list_usage"))
         except ValidationError as exc:
             flash(str(exc), "error")
@@ -70,10 +57,8 @@ def edit_usage(usage_id: int):
         return redirect(url_for("kpi_usage.list_usage"))
 
     form = KpiUsageForm(obj=usage)
+    form.report_id.data = str(usage.report_id)
     if form.validate_on_submit():
-        if not form.consumer_tool.data:
-            flash("Consumer Tool is required for editing.", "error")
-            return render_template("kpi_usage_form.html", form=form, is_edit=True)
         dto = _dto_from_form(form)
         try:
             service.update(usage_id, dto)
@@ -84,4 +69,5 @@ def edit_usage(usage_id: int):
         except DomainError as exc:
             flash(f"Domain error: {exc}", "error")
 
-    return render_template("kpi_usage_form.html", form=form, is_edit=True)
+    report_label = f"{usage.report_name} ({usage.consumer_tool})" if usage.report_name and usage.consumer_tool else ""
+    return render_template("kpi_usage_form.html", form=form, is_edit=True, report_label=report_label)

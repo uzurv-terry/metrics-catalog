@@ -5,6 +5,8 @@ from app.infrastructure.redshift.repositories.kpi_definition_repository import (
 from app.infrastructure.redshift.repositories.kpi_approver_repository import RedshiftKpiApproverRepository
 from app.infrastructure.redshift.repositories.kpi_usage_repository import RedshiftKpiUsageRepository
 from app.infrastructure.redshift.repositories.lineage_repository import RedshiftLineageRepository
+from app.infrastructure.redshift.repositories.report_repository import RedshiftReportRepository
+from app.infrastructure.redshift.repositories.catalog_note_repository import RedshiftCatalogNoteRepository
 
 
 class RedshiftUnitOfWork(UnitOfWork):
@@ -15,6 +17,8 @@ class RedshiftUnitOfWork(UnitOfWork):
         self.usage = None
         self.approvers = None
         self.lineage = None
+        self.reports = None
+        self.notes = None
 
     def __enter__(self):
         self._executor = self._connection_factory.create()
@@ -22,6 +26,8 @@ class RedshiftUnitOfWork(UnitOfWork):
         self.usage = RedshiftKpiUsageRepository(self._executor)
         self.approvers = RedshiftKpiApproverRepository(self._executor)
         self.lineage = RedshiftLineageRepository(self._executor)
+        self.reports = RedshiftReportRepository(self._executor)
+        self.notes = RedshiftCatalogNoteRepository(self._executor)
         return self
 
     def __exit__(self, exc_type, exc, tb):

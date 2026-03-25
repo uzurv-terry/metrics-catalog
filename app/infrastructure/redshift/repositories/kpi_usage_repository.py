@@ -2,6 +2,7 @@ from typing import List
 
 from app.application.ports.kpi_usage_repository import KpiUsageRepository
 from app.domain.models import KpiUsage
+from app.infrastructure.redshift.repositories._sql import render_limit
 
 
 class RedshiftKpiUsageRepository(KpiUsageRepository):
@@ -9,40 +10,49 @@ class RedshiftKpiUsageRepository(KpiUsageRepository):
         self._executor = executor
 
     def list_recent(self, limit: int = 100) -> List[KpiUsage]:
-        sql = """
-            select usage_id, kpi_id, kpi_slug, kpi_version,
-                   usage_type, consumer_tool, reference_name, reference_url,
-                   source_system, context_notes,
+        sql = f"""
+            select u.usage_id, u.kpi_id, u.kpi_slug, u.kpi_version, u.report_id,
+                   u.usage_type,
                    default_chart_type, approved_visualizations,
                    preferred_dimensions, json_serialize(preferred_filters) as preferred_filters_json,
-                   row_level_security_notes, created_at
-            from kpi_catalog.kpi_usage
-            order by created_at desc
-            limit cast(:limit as integer)
+                   row_level_security_notes, u.created_at, u.updated_at,
+                   r.report_name, r.report_slug, r.report_type, r.consumer_tool,
+                   r.report_url, r.source_system
+            from kpi_catalog.kpi_usage u
+            join kpi_catalog.report r
+              on r.report_id = u.report_id
+            order by u.created_at desc
+            limit {render_limit(limit)}
         """
-        rows = self._executor.query(sql, {"limit": limit})
+        rows = self._executor.query(sql)
         return [self._map(row) for row in rows]
 
     def list_recent_summary(self, limit: int = 100) -> list[dict]:
-        sql = """
-            select usage_id, kpi_id, kpi_slug, kpi_version,
-                   consumer_tool, usage_type, reference_name, created_at
-            from kpi_catalog.kpi_usage
-            order by created_at desc
-            limit cast(:limit as integer)
+        sql = f"""
+            select u.usage_id, u.kpi_id, u.kpi_slug, u.kpi_version,
+                   u.report_id, r.consumer_tool, u.usage_type, r.report_name, r.report_type,
+                   u.created_at
+            from kpi_catalog.kpi_usage u
+            join kpi_catalog.report r
+              on r.report_id = u.report_id
+            order by u.created_at desc
+            limit {render_limit(limit)}
         """
-        return self._executor.query(sql, {"limit": limit})
+        return self._executor.query(sql)
 
     def get_by_usage_id(self, usage_id: int):
         sql = """
-            select usage_id, kpi_id, kpi_slug, kpi_version,
-                   usage_type, consumer_tool, reference_name, reference_url,
-                   source_system, context_notes,
+            select u.usage_id, u.kpi_id, u.kpi_slug, u.kpi_version, u.report_id,
+                   u.usage_type,
                    default_chart_type, approved_visualizations,
                    preferred_dimensions, json_serialize(preferred_filters) as preferred_filters_json,
-                   row_level_security_notes, created_at
-            from kpi_catalog.kpi_usage
-            where usage_id = cast(:usage_id as bigint)
+                   row_level_security_notes, u.created_at, u.updated_at,
+                   r.report_name, r.report_slug, r.report_type, r.consumer_tool,
+                   r.report_url, r.source_system
+            from kpi_catalog.kpi_usage u
+            join kpi_catalog.report r
+              on r.report_id = u.report_id
+            where u.usage_id = cast(:usage_id as bigint)
             limit 1
         """
         rows = self._executor.query(sql, {"usage_id": usage_id})
@@ -50,16 +60,19 @@ class RedshiftKpiUsageRepository(KpiUsageRepository):
 
     def list_by_metric(self, kpi_slug: str, kpi_version: int) -> list[KpiUsage]:
         sql = """
-            select usage_id, kpi_id, kpi_slug, kpi_version,
-                   usage_type, consumer_tool, reference_name, reference_url,
-                   source_system, context_notes,
+            select u.usage_id, u.kpi_id, u.kpi_slug, u.kpi_version, u.report_id,
+                   u.usage_type,
                    default_chart_type, approved_visualizations,
                    preferred_dimensions, json_serialize(preferred_filters) as preferred_filters_json,
-                   row_level_security_notes, created_at
-            from kpi_catalog.kpi_usage
-            where kpi_slug = :kpi_slug
-              and kpi_version = cast(:kpi_version as integer)
-            order by created_at desc, usage_id desc
+                   row_level_security_notes, u.created_at, u.updated_at,
+                   r.report_name, r.report_slug, r.report_type, r.consumer_tool,
+                   r.report_url, r.source_system
+            from kpi_catalog.kpi_usage u
+            join kpi_catalog.report r
+              on r.report_id = u.report_id
+            where u.kpi_slug = :kpi_slug
+              and u.kpi_version = cast(:kpi_version as integer)
+            order by u.created_at desc, u.usage_id desc
         """
         rows = self._executor.query(sql, {"kpi_slug": kpi_slug, "kpi_version": kpi_version})
         return [self._map(row) for row in rows]
@@ -67,17 +80,15 @@ class RedshiftKpiUsageRepository(KpiUsageRepository):
     def insert(self, usage: KpiUsage) -> None:
         sql = """
             insert into kpi_catalog.kpi_usage (
-                kpi_id, kpi_slug, kpi_version,
-                usage_type, consumer_tool, reference_name, reference_url,
-                source_system, context_notes,
+                kpi_id, kpi_slug, kpi_version, report_id,
+                usage_type,
                 default_chart_type, approved_visualizations,
                 preferred_dimensions, preferred_filters,
                 row_level_security_notes
             )
             values (
-                :kpi_id, :kpi_slug, cast(:kpi_version as integer),
-                :usage_type, :consumer_tool, :reference_name, nullif(:reference_url, '__APP_NULL_SENTINEL__'),
-                nullif(:source_system, '__APP_NULL_SENTINEL__'), nullif(:context_notes, '__APP_NULL_SENTINEL__'),
+                :kpi_id, :kpi_slug, cast(:kpi_version as integer), cast(:report_id as bigint),
+                :usage_type,
                 nullif(:default_chart_type, '__APP_NULL_SENTINEL__'), nullif(:approved_visualizations, '__APP_NULL_SENTINEL__'),
                 nullif(:preferred_dimensions, '__APP_NULL_SENTINEL__'),
                 case when nullif(:preferred_filters_json, '__APP_NULL_SENTINEL__') is null then null else json_parse(:preferred_filters_json) end,
@@ -90,12 +101,8 @@ class RedshiftKpiUsageRepository(KpiUsageRepository):
                 "kpi_id": usage.kpi_id,
                 "kpi_slug": usage.kpi_slug,
                 "kpi_version": usage.kpi_version,
+                "report_id": usage.report_id,
                 "usage_type": usage.usage_type,
-                "consumer_tool": usage.consumer_tool,
-                "reference_name": usage.reference_name,
-                "reference_url": usage.reference_url,
-                "source_system": usage.source_system,
-                "context_notes": usage.context_notes,
                 "default_chart_type": usage.default_chart_type,
                 "approved_visualizations": usage.approved_visualizations,
                 "preferred_dimensions": usage.preferred_dimensions,
@@ -113,9 +120,8 @@ class RedshiftKpiUsageRepository(KpiUsageRepository):
         for idx, usage in enumerate(usages):
             values_sql.append(
                 f"""(
-                    :kpi_id_{idx}, :kpi_slug_{idx}, cast(:kpi_version_{idx} as integer),
-                    :usage_type_{idx}, :consumer_tool_{idx}, :reference_name_{idx}, nullif(:reference_url_{idx}, '__APP_NULL_SENTINEL__'),
-                    nullif(:source_system_{idx}, '__APP_NULL_SENTINEL__'), nullif(:context_notes_{idx}, '__APP_NULL_SENTINEL__'),
+                    :kpi_id_{idx}, :kpi_slug_{idx}, cast(:kpi_version_{idx} as integer), cast(:report_id_{idx} as bigint),
+                    :usage_type_{idx},
                     nullif(:default_chart_type_{idx}, '__APP_NULL_SENTINEL__'), nullif(:approved_visualizations_{idx}, '__APP_NULL_SENTINEL__'),
                     nullif(:preferred_dimensions_{idx}, '__APP_NULL_SENTINEL__'),
                     case when nullif(:preferred_filters_json_{idx}, '__APP_NULL_SENTINEL__') is null then null else json_parse(:preferred_filters_json_{idx}) end,
@@ -127,12 +133,8 @@ class RedshiftKpiUsageRepository(KpiUsageRepository):
                     f"kpi_id_{idx}": usage.kpi_id,
                     f"kpi_slug_{idx}": usage.kpi_slug,
                     f"kpi_version_{idx}": usage.kpi_version,
+                    f"report_id_{idx}": usage.report_id,
                     f"usage_type_{idx}": usage.usage_type,
-                    f"consumer_tool_{idx}": usage.consumer_tool,
-                    f"reference_name_{idx}": usage.reference_name,
-                    f"reference_url_{idx}": usage.reference_url,
-                    f"source_system_{idx}": usage.source_system,
-                    f"context_notes_{idx}": usage.context_notes,
                     f"default_chart_type_{idx}": usage.default_chart_type,
                     f"approved_visualizations_{idx}": usage.approved_visualizations,
                     f"preferred_dimensions_{idx}": usage.preferred_dimensions,
@@ -143,9 +145,8 @@ class RedshiftKpiUsageRepository(KpiUsageRepository):
 
         sql = f"""
             insert into kpi_catalog.kpi_usage (
-                kpi_id, kpi_slug, kpi_version,
-                usage_type, consumer_tool, reference_name, reference_url,
-                source_system, context_notes,
+                kpi_id, kpi_slug, kpi_version, report_id,
+                usage_type,
                 default_chart_type, approved_visualizations,
                 preferred_dimensions, preferred_filters,
                 row_level_security_notes
@@ -161,17 +162,14 @@ class RedshiftKpiUsageRepository(KpiUsageRepository):
                 kpi_id = :kpi_id,
                 kpi_slug = :kpi_slug,
                 kpi_version = cast(:kpi_version as integer),
+                report_id = cast(:report_id as bigint),
                 usage_type = :usage_type,
-                consumer_tool = :consumer_tool,
-                reference_name = :reference_name,
-                reference_url = nullif(:reference_url, '__APP_NULL_SENTINEL__'),
-                source_system = nullif(:source_system, '__APP_NULL_SENTINEL__'),
-                context_notes = nullif(:context_notes, '__APP_NULL_SENTINEL__'),
                 default_chart_type = nullif(:default_chart_type, '__APP_NULL_SENTINEL__'),
                 approved_visualizations = nullif(:approved_visualizations, '__APP_NULL_SENTINEL__'),
                 preferred_dimensions = nullif(:preferred_dimensions, '__APP_NULL_SENTINEL__'),
                 preferred_filters = case when nullif(:preferred_filters_json, '__APP_NULL_SENTINEL__') is null then null else json_parse(:preferred_filters_json) end,
-                row_level_security_notes = nullif(:row_level_security_notes, '__APP_NULL_SENTINEL__')
+                row_level_security_notes = nullif(:row_level_security_notes, '__APP_NULL_SENTINEL__'),
+                updated_at = getdate()
             where usage_id = cast(:usage_id as bigint)
         """
         self._executor.execute(
@@ -180,12 +178,8 @@ class RedshiftKpiUsageRepository(KpiUsageRepository):
                 "kpi_id": usage.kpi_id,
                 "kpi_slug": usage.kpi_slug,
                 "kpi_version": usage.kpi_version,
+                "report_id": usage.report_id,
                 "usage_type": usage.usage_type,
-                "consumer_tool": usage.consumer_tool,
-                "reference_name": usage.reference_name,
-                "reference_url": usage.reference_url,
-                "source_system": usage.source_system,
-                "context_notes": usage.context_notes,
                 "default_chart_type": usage.default_chart_type,
                 "approved_visualizations": usage.approved_visualizations,
                 "preferred_dimensions": usage.preferred_dimensions,
@@ -202,16 +196,19 @@ class RedshiftKpiUsageRepository(KpiUsageRepository):
             kpi_id=row["kpi_id"],
             kpi_slug=row["kpi_slug"],
             kpi_version=int(row["kpi_version"]),
+            report_id=int(row["report_id"]),
             usage_type=row["usage_type"],
-            consumer_tool=row["consumer_tool"],
-            reference_name=row["reference_name"],
-            reference_url=row.get("reference_url"),
-            source_system=row.get("source_system"),
-            context_notes=row.get("context_notes"),
             default_chart_type=row.get("default_chart_type"),
             approved_visualizations=row.get("approved_visualizations"),
             preferred_dimensions=row.get("preferred_dimensions"),
             preferred_filters_json=row.get("preferred_filters_json"),
             row_level_security_notes=row.get("row_level_security_notes"),
+            report_name=row.get("report_name"),
+            report_slug=row.get("report_slug"),
+            report_type=row.get("report_type"),
+            consumer_tool=row.get("consumer_tool"),
+            report_url=row.get("report_url"),
+            source_system=row.get("source_system"),
             created_at=row.get("created_at"),
+            updated_at=row.get("updated_at"),
         )

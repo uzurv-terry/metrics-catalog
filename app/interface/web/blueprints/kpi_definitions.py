@@ -1,7 +1,9 @@
 from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 
+from app.application.dto.catalog_note_dto import CatalogNoteDTO
 from app.application.dto.kpi_definition_dto import KpiDefinitionDTO
 from app.domain.exceptions import ConflictError, DomainError, ValidationError
+from app.interface.web.forms.catalog_note_form import CatalogNoteForm
 from app.interface.web.forms.kpi_definition_form import KpiDefinitionForm
 
 bp = Blueprint("kpi_definitions", __name__, url_prefix="/kpi-definitions")
@@ -40,6 +42,21 @@ def _edit_context_from_request() -> tuple[str | None, int | None]:
         return slug, int(version_raw)
     except ValueError:
         return slug, None
+
+
+def _metric_note_dto_from_form(form: CatalogNoteForm) -> CatalogNoteDTO:
+    return CatalogNoteDTO(
+        note_scope="metric_definition",
+        kpi_id=(form.kpi_id.data or "").strip() or None,
+        kpi_slug=(form.kpi_slug.data or "").strip() or None,
+        kpi_version=form.kpi_version.data or None,
+        note_type=form.note_type.data,
+        note_title=form.note_title.data,
+        note_body=form.note_body.data,
+        author_name=form.author_name.data,
+        author_email=form.author_email.data,
+        is_active=bool(form.is_active.data),
+    )
 
 
 @bp.route("/", methods=["GET", "POST"])
@@ -87,15 +104,20 @@ def list_definitions():
     )
 
 
-@bp.get("/overview")
+@bp.route("/overview", methods=["GET", "POST"])
 def metric_overview():
     definition_service = current_app.extensions["services"]["kpi_definition"]
     usage_service = current_app.extensions["services"]["kpi_usage"]
-    kpi_slug = (request.args.get("kpi_slug") or "").strip()
-    kpi_version_raw = (request.args.get("kpi_version") or "").strip()
+    note_service = current_app.extensions["services"]["catalog_note"]
+    note_form = CatalogNoteForm(prefix="note")
+    source = request.form if request.method == "POST" else request.args
+    kpi_slug = (source.get("kpi_slug") or source.get("note-kpi_slug") or "").strip()
+    kpi_version_raw = (source.get("kpi_version") or source.get("note-kpi_version") or "").strip()
 
     definition = None
     usage_rows = []
+    metric_notes = []
+    report_notes_by_report = {}
     selected_metric = None
 
     if kpi_slug or kpi_version_raw:
@@ -111,13 +133,44 @@ def metric_overview():
             return redirect(url_for("kpi_definitions.metric_overview"))
 
         usage_rows = usage_service.list_by_metric(kpi_slug, kpi_version)
+        metric_notes = note_service.list_by_metric(kpi_slug, kpi_version)
+        report_notes_by_report = note_service.list_by_report_ids(
+            [usage.report_id for usage in usage_rows if usage.report_id]
+        )
         selected_metric = {"kpi_slug": kpi_slug, "kpi_version": kpi_version}
+        note_form.note_scope.data = "metric_definition"
+        note_form.kpi_id.data = definition.kpi_id
+        note_form.kpi_slug.data = definition.kpi_slug
+        note_form.kpi_version.data = definition.kpi_version
+
+    if request.method == "POST":
+        if definition is None:
+            flash("Metric definition not found", "error")
+            return redirect(url_for("kpi_definitions.metric_overview"))
+        if note_form.validate_on_submit():
+            try:
+                note_service.create(_metric_note_dto_from_form(note_form))
+                flash("Metric note created", "success")
+                return redirect(
+                    url_for(
+                        "kpi_definitions.metric_overview",
+                        kpi_slug=definition.kpi_slug,
+                        kpi_version=definition.kpi_version,
+                    )
+                )
+            except ValidationError as exc:
+                flash(str(exc), "error")
+            except DomainError as exc:
+                flash(f"Domain error: {exc}", "error")
 
     return render_template(
         "metric_overview.html",
         definition=definition,
         usage_rows=usage_rows,
+        metric_notes=metric_notes,
+        report_notes_by_report=report_notes_by_report,
         selected_metric=selected_metric,
+        note_form=note_form,
     )
 
 

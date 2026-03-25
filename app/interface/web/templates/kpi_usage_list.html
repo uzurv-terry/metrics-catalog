@@ -29,11 +29,12 @@
 <div class="workspace workspace-usage">
   <section class="panel">
     <h2>Create Metric Usage</h2>
-    <p class="small">Search by metric ID or metric slug, then map that metric version to one or more consumer tools.</p>
+    <p class="small">Search for a metric and an existing report, then map that metric version into that report.</p>
     <p class="small"><strong>Required</strong> fields are labeled with "(Required)".</p>
 
     <form method="post" class="form-grid" data-unsaved-warning>
       {{ form.hidden_tag() }}
+      {{ form.report_id() }}
       {% if form.errors %}
       <div class="error-summary full-row" role="alert">
         <h3>Fix the following fields before saving:</h3>
@@ -77,47 +78,33 @@
       </div>
 
       <div class="form-section">
-        <h3>Consumer Details</h3>
+        <h3>Report Link</h3>
+        <div class="form-subgrid">
+          <div class="full-row">
+            <label for="report_lookup">Find Report</label>
+            <div class="lookup-shell">
+              <input id="report_lookup" type="text" autocomplete="off" placeholder="Start typing report name, slug, or tool">
+              <div id="report_lookup_suggestions" class="lookup-suggestions" hidden></div>
+            </div>
+            <div id="report_lookup_status" class="small">Type at least 2 characters to search reports.</div>
+          </div>
+          <div class="full-row">
+            <aside class="help-card">
+              <h4>Report Requirements</h4>
+              <p><strong>Reports are managed separately:</strong> create or edit them from the Reports workspace.</p>
+              <p><strong>Metric Usage now records the intersection:</strong> how a metric version appears inside a selected report.</p>
+            </aside>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h3>Usage Details</h3>
         <div class="form-subgrid">
           <div>
             {{ form.usage_type.label }}
             {{ form.usage_type() }}
             {% for error in form.usage_type.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
-          </div>
-          <div class="full-row">
-            <label>{{ form.consumer_tools.label.text }}</label>
-            <div class="checkbox-stack">
-              {% for option in form.consumer_tools %}
-              <label class="checkbox-inline checkbox-choice">{{ option() }} {{ option.label.text }}</label>
-              {% endfor %}
-            </div>
-            <div class="small">Select all tools where this metric is used. One usage row will be created per selected tool.</div>
-          </div>
-          <div>
-            {{ form.reference_name.label }}
-            {{ form.reference_name() }}
-            {% for error in form.reference_name.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
-          </div>
-          <div>
-            {{ form.source_system.label }}
-            {{ form.source_system() }}
-          </div>
-          <div class="full-row">
-            {{ form.reference_url.label }}
-            {{ form.reference_url() }}
-          </div>
-          <div class="full-row">
-            {{ form.context_notes.label }}
-            {{ form.context_notes(rows=2) }}
-          </div>
-          <div class="full-row">
-            <aside class="help-card">
-              <h4>Consumer Metadata Definitions</h4>
-              <p><strong>Dashboard or Report Name:</strong> the name users recognize.</p>
-              <p><strong>Platform or System Name:</strong> where this usage lives (Tableau, Looker, internal app, etc.).</p>
-              <p><strong>Link to Dashboard or Report:</strong> direct link so someone can open it quickly.</p>
-              <p><strong>Additional Notes:</strong> free-text context like business caveats, ownership details, or rollout notes.</p>
-            </aside>
           </div>
         </div>
       </div>
@@ -166,9 +153,10 @@
             <th>Metric ID</th>
             <th>Slug</th>
             <th>Version</th>
+            <th>Report</th>
             <th>Tool</th>
+            <th>Report Type</th>
             <th>Type</th>
-            <th>Reference</th>
             <th>Created</th>
             <th>Actions</th>
           </tr>
@@ -180,9 +168,10 @@
             <td>{{ u.kpi_id }}</td>
             <td>{{ u.kpi_slug }}</td>
             <td>{{ u.kpi_version }}</td>
+            <td>{{ u.report_name }}</td>
             <td>{{ u.consumer_tool }}</td>
+            <td>{{ u.report_type }}</td>
             <td>{{ u.usage_type }}</td>
-            <td>{{ u.reference_name }}</td>
             <td>{{ u.created_at }}</td>
             <td><a href="{{ url_for('kpi_usage.edit_usage', usage_id=u.usage_id) }}">Edit</a></td>
           </tr>
@@ -253,6 +242,60 @@
       onType: clearSelection,
       onClear: clearSelection,
       onBlur: (value, definitions) => applySelection(findMatch(value, definitions)),
+    });
+  })();
+
+  (function () {
+    const lookupInput = document.getElementById("report_lookup");
+    const suggestionPanel = document.getElementById("report_lookup_suggestions");
+    const reportIdInput = document.getElementById("report_id");
+    const statusEl = document.getElementById("report_lookup_status");
+
+    if (!lookupInput || !suggestionPanel || !reportIdInput || !statusEl) return;
+
+    const findMatch = (value, reports) => {
+      const q = (value || "").trim().toLowerCase();
+      if (!q) return null;
+      return reports.find((r) =>
+        r.report_name.toLowerCase() === q ||
+        r.report_slug.toLowerCase() === q
+      );
+    };
+
+    const applySelection = (match) => {
+      if (!match) return;
+      reportIdInput.value = match.report_id;
+      statusEl.textContent = `Linked to ${match.report_name} (${match.consumer_tool}).`;
+    };
+
+    const clearSelection = () => {
+      reportIdInput.value = "";
+    };
+
+    window.createLookupController({
+      input: lookupInput,
+      panel: suggestionPanel,
+      statusEl,
+      idleMessage: "Type at least 2 characters to search reports.",
+      searchingMessage: "Searching reports...",
+      emptyMessage: "No reports found.",
+      errorMessage: "Report search failed. Try again.",
+      foundMessage: (reports) => `${reports.length} report match(es) found.`,
+      fetchResults: async (query, signal) => {
+        const response = await fetch(`{{ url_for("lineage.search_reports") }}?q=${encodeURIComponent(query)}`, {
+          signal,
+          headers: { "Accept": "application/json" }
+        });
+        const payload = await response.json();
+        return payload.results || [];
+      },
+      primaryText: (item) => item.report_name,
+      secondaryText: (item) => `${item.consumer_tool} | ${item.report_slug} | ${item.report_type}`,
+      inputValue: (item) => item.report_name,
+      onSelect: applySelection,
+      onType: clearSelection,
+      onClear: clearSelection,
+      onBlur: (value, reports) => applySelection(findMatch(value, reports)),
     });
   })();
 </script>
