@@ -2,6 +2,7 @@ from flask import Blueprint, current_app, flash, redirect, render_template, url_
 
 from app.application.dto.kpi_usage_dto import KpiUsageDTO
 from app.domain.exceptions import DomainError, ValidationError
+from app.interface.web.backend_errors import flash_backend_error, is_backend_error
 from app.interface.web.forms.kpi_usage_form import KpiUsageForm
 
 bp = Blueprint("kpi_usage", __name__, url_prefix="/kpi-usage")
@@ -38,8 +39,18 @@ def list_usage():
             flash(str(exc), "error")
         except DomainError as exc:
             flash(f"Domain error: {exc}", "error")
+        except Exception as exc:
+            if not is_backend_error(exc):
+                raise
+            flash_backend_error("Saving the metric usage mapping", exc)
 
-    usage_rows = service.list_recent_summary(limit=USAGE_LIST_LIMIT)
+    try:
+        usage_rows = service.list_recent_summary(limit=USAGE_LIST_LIMIT)
+    except Exception as exc:
+        if not is_backend_error(exc):
+            raise
+        flash_backend_error("Loading metric usage mappings", exc)
+        usage_rows = []
     return render_template("kpi_usage_list.html", usage_rows=usage_rows, form=form)
 
 
@@ -51,7 +62,13 @@ def create_usage():
 @bp.route("/<int:usage_id>/edit", methods=["GET", "POST"])
 def edit_usage(usage_id: int):
     service = current_app.extensions["services"]["kpi_usage"]
-    usage = service.get_by_usage_id(usage_id)
+    try:
+        usage = service.get_by_usage_id(usage_id)
+    except Exception as exc:
+        if not is_backend_error(exc):
+            raise
+        flash_backend_error("Loading the metric usage mapping", exc)
+        return redirect(url_for("kpi_usage.list_usage"))
     if usage is None:
         flash("Usage row not found", "error")
         return redirect(url_for("kpi_usage.list_usage"))
@@ -68,6 +85,10 @@ def edit_usage(usage_id: int):
             flash(str(exc), "error")
         except DomainError as exc:
             flash(f"Domain error: {exc}", "error")
+        except Exception as exc:
+            if not is_backend_error(exc):
+                raise
+            flash_backend_error("Updating the metric usage mapping", exc)
 
     report_label = f"{usage.report_name} ({usage.consumer_tool})" if usage.report_name and usage.consumer_tool else ""
     return render_template("kpi_usage_form.html", form=form, is_edit=True, report_label=report_label)

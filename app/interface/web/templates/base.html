@@ -588,6 +588,18 @@
         });
       })();
 
+      window.fetchLookupResults = async function fetchLookupResults(url, signal) {
+        const response = await fetch(url, {
+          signal,
+          headers: { "Accept": "application/json" }
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || "Lookup request failed.");
+        }
+        return payload.results || [];
+      };
+
       window.createLookupController = function createLookupController(config) {
         const input = config.input;
         const panel = config.panel;
@@ -695,7 +707,7 @@
             if (error.name === "AbortError") return;
             results = [];
             closePanel();
-            statusEl.textContent = config.errorMessage || "Search failed. Try again.";
+            statusEl.textContent = error.message || config.errorMessage || "Search failed. Try again.";
           }
         }, debounceMs);
 

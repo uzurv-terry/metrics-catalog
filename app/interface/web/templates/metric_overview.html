@@ -544,14 +544,10 @@
       emptyMessage: "No metric matches found.",
       errorMessage: "Metric search failed. Try again.",
       foundMessage: (definitions) => `${definitions.length} metric match(es) found.`,
-      fetchResults: async (query, signal) => {
-        const response = await fetch(`{{ url_for("lineage.search_kpis") }}?q=${encodeURIComponent(query)}`, {
-          signal,
-          headers: { "Accept": "application/json" }
-        });
-        const payload = await response.json();
-        return payload.results || [];
-      },
+      fetchResults: (query, signal) => window.fetchLookupResults(
+        `{{ url_for("lineage.search_kpis") }}?q=${encodeURIComponent(query)}`,
+        signal,
+      ),
       primaryText: (item) => item.kpi_name,
       secondaryText: (item) => `${item.kpi_id} | ${item.kpi_slug} | v${item.kpi_version}`,
       inputValue: (item) => item.kpi_name,

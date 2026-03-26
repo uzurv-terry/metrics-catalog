@@ -3,6 +3,7 @@ from flask import Blueprint, current_app, flash, redirect, render_template, url_
 from app.application.dto.catalog_note_dto import CatalogNoteDTO
 from app.application.dto.report_dto import ReportDTO
 from app.domain.exceptions import ConflictError, DomainError, ValidationError
+from app.interface.web.backend_errors import flash_backend_error, is_backend_error
 from app.interface.web.forms.catalog_note_form import CatalogNoteForm
 from app.interface.web.forms.report_form import ReportForm
 
@@ -50,8 +51,18 @@ def list_reports():
             flash(str(exc), "error")
         except DomainError as exc:
             flash(f"Domain error: {exc}", "error")
+        except Exception as exc:
+            if not is_backend_error(exc):
+                raise
+            flash_backend_error("Saving the report", exc)
 
-    reports = service.list_recent_summary(limit=REPORT_LIST_LIMIT)
+    try:
+        reports = service.list_recent_summary(limit=REPORT_LIST_LIMIT)
+    except Exception as exc:
+        if not is_backend_error(exc):
+            raise
+        flash_backend_error("Loading reports", exc)
+        reports = []
     return render_template("report_list.html", reports=reports, form=form)
 
 
@@ -64,7 +75,13 @@ def create_report():
 def edit_report(report_id: int):
     report_service = current_app.extensions["services"]["report"]
     note_service = current_app.extensions["services"]["catalog_note"]
-    report = report_service.get_by_report_id(report_id)
+    try:
+        report = report_service.get_by_report_id(report_id)
+    except Exception as exc:
+        if not is_backend_error(exc):
+            raise
+        flash_backend_error("Loading the report", exc)
+        return redirect(url_for("reports.list_reports"))
     if report is None:
         flash("Report not found", "error")
         return redirect(url_for("reports.list_reports"))
@@ -73,7 +90,13 @@ def edit_report(report_id: int):
     note_form = CatalogNoteForm(prefix="note")
     note_form.note_scope.data = "report"
     note_form.report_id.data = str(report.report_id)
-    report_notes = note_service.list_by_report_id(report.report_id)
+    try:
+        report_notes = note_service.list_by_report_id(report.report_id)
+    except Exception as exc:
+        if not is_backend_error(exc):
+            raise
+        flash_backend_error("Loading report notes", exc)
+        report_notes = []
 
     if form.validate_on_submit():
         try:
@@ -84,6 +107,10 @@ def edit_report(report_id: int):
             flash(str(exc), "error")
         except DomainError as exc:
             flash(f"Domain error: {exc}", "error")
+        except Exception as exc:
+            if not is_backend_error(exc):
+                raise
+            flash_backend_error("Updating the report", exc)
 
     return render_template(
         "report_form.html",
@@ -99,7 +126,13 @@ def edit_report(report_id: int):
 def create_report_note(report_id: int):
     report_service = current_app.extensions["services"]["report"]
     note_service = current_app.extensions["services"]["catalog_note"]
-    report = report_service.get_by_report_id(report_id)
+    try:
+        report = report_service.get_by_report_id(report_id)
+    except Exception as exc:
+        if not is_backend_error(exc):
+            raise
+        flash_backend_error("Loading the report", exc)
+        return redirect(url_for("reports.list_reports"))
     if report is None:
         flash("Report not found", "error")
         return redirect(url_for("reports.list_reports"))
@@ -114,11 +147,21 @@ def create_report_note(report_id: int):
             flash(str(exc), "error")
         except DomainError as exc:
             flash(f"Domain error: {exc}", "error")
+        except Exception as exc:
+            if not is_backend_error(exc):
+                raise
+            flash_backend_error("Saving the report note", exc)
 
     form = ReportForm(obj=report)
     note_form.note_scope.data = "report"
     note_form.report_id.data = str(report.report_id)
-    report_notes = note_service.list_by_report_id(report.report_id)
+    try:
+        report_notes = note_service.list_by_report_id(report.report_id)
+    except Exception as exc:
+        if not is_backend_error(exc):
+            raise
+        flash_backend_error("Loading report notes", exc)
+        report_notes = []
     return render_template(
         "report_form.html",
         form=form,

@@ -120,14 +120,10 @@
       emptyMessage: "No reports found.",
       errorMessage: "Report search failed. Try again.",
       foundMessage: (reports) => `${reports.length} report match(es) found.`,
-      fetchResults: async (query, signal) => {
-        const response = await fetch(`{{ url_for("lineage.search_reports") }}?q=${encodeURIComponent(query)}`, {
-          signal,
-          headers: { "Accept": "application/json" }
-        });
-        const payload = await response.json();
-        return payload.results || [];
-      },
+      fetchResults: (query, signal) => window.fetchLookupResults(
+        `{{ url_for("lineage.search_reports") }}?q=${encodeURIComponent(query)}`,
+        signal,
+      ),
       primaryText: (item) => item.report_name,
       secondaryText: (item) => `${item.consumer_tool} | ${item.report_slug} | ${item.report_type}`,
       inputValue: (item) => item.report_name,
