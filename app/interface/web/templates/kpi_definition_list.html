@@ -1,6 +1,80 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="workspace">
+<style>
+  .shell {
+    max-width: min(96vw, 1760px);
+    padding: 0 max(var(--space-3), 1.6vw);
+  }
+
+  .workspace-definitions {
+    grid-template-columns: minmax(520px, 0.95fr) minmax(0, 1.7fr);
+    gap: 1.1rem;
+  }
+
+  .workspace-definitions > .panel:last-child {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 130px);
+    overflow: hidden;
+  }
+
+  .definition-table-shell {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-height: 0;
+  }
+
+  .definition-table-top-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    height: 16px;
+    border: 1px solid #d7dceb;
+    border-radius: var(--radius-pill);
+    background: linear-gradient(180deg, #f6f9ff, #e9effa);
+  }
+
+  .definition-table-top-scroll[hidden] {
+    display: none;
+  }
+
+  .definition-table-top-scroll-inner {
+    height: 1px;
+  }
+
+  .definition-table-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    border: 1px solid #eaecf0;
+    border-radius: var(--radius-md);
+    background: #fff;
+  }
+
+  .definition-table-wrap table {
+    min-width: 1220px;
+  }
+
+  .definition-table-wrap th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    box-shadow: inset 0 -1px 0 #eaecf0;
+  }
+
+  @media (max-width: 760px) {
+    .shell {
+      max-width: 100%;
+      padding: 0 var(--space-4);
+    }
+
+    .workspace-definitions > .panel:last-child {
+      max-height: none;
+    }
+  }
+</style>
+<div class="workspace workspace-definitions">
   <section class="panel">
     <h2>Create or Update Metric Definition</h2>
     <p class="small">Metric ID is auto-generated. Slug is derived from metric name. Name must be unique.</p>
@@ -182,47 +256,103 @@
   <section class="panel">
     <h2>Metric Definitions</h2>
     <p class="small">To update a metric definition, click <strong>Load</strong> to open it in the form on the left.</p>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Metric ID</th>
-            <th>Slug</th>
-            <th>Version</th>
-            <th>Name</th>
-            <th>Status</th>
-            <th>Certification</th>
-            <th>Owner Team</th>
-            <th>Created</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for d in definitions %}
-          <tr>
-            <td>{{ d.kpi_id }}</td>
-            <td>{{ d.kpi_slug }}</td>
-            <td>{{ d.kpi_version }}</td>
-            <td>{{ d.kpi_name }}</td>
-            <td>{{ d.status }}</td>
-            <td>{{ d.certification_level }}</td>
-            <td>{{ d.owner_team }}</td>
-            <td>{{ d.created_at }}</td>
-            <td>
-              <a href="{{ url_for('kpi_definitions.list_definitions', edit_slug=d.kpi_slug, edit_version=d.kpi_version) }}">Load</a>
-              |
-              <a href="{{ url_for('kpi_definitions.metric_overview', kpi_slug=d.kpi_slug, kpi_version=d.kpi_version) }}">Overview</a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="definition-table-shell">
+      <div id="definition-table-top-scroll" class="definition-table-top-scroll" aria-label="Horizontal scroll for metric definitions table" hidden>
+        <div id="definition-table-top-scroll-inner" class="definition-table-top-scroll-inner"></div>
+      </div>
+      <div id="definition-table-wrap" class="table-wrap definition-table-wrap">
+        <table id="definition-table">
+          <thead>
+            <tr>
+              <th>Metric ID</th>
+              <th>Slug</th>
+              <th>Version</th>
+              <th>Name</th>
+              <th>Status</th>
+              <th>Certification</th>
+              <th>Owner Team</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if definitions %}
+            {% for d in definitions %}
+            <tr>
+              <td>{{ d.kpi_id }}</td>
+              <td>{{ d.kpi_slug }}</td>
+              <td>{{ d.kpi_version }}</td>
+              <td>{{ d.kpi_name }}</td>
+              <td>{{ d.status }}</td>
+              <td>{{ d.certification_level }}</td>
+              <td>{{ d.owner_team }}</td>
+              <td>{{ d.created_at }}</td>
+              <td>
+                <a href="{{ url_for('kpi_definitions.list_definitions', edit_slug=d.kpi_slug, edit_version=d.kpi_version) }}">Load</a>
+                |
+                <a href="{{ url_for('kpi_definitions.metric_overview', kpi_slug=d.kpi_slug, kpi_version=d.kpi_version) }}">Overview</a>
+              </td>
+            </tr>
+            {% endfor %}
+            {% else %}
+            <tr>
+              <td colspan="9" class="small">No metric definitions available to display.</td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
     </div>
   </section>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
+  (function () {
+    const topScroll = document.getElementById("definition-table-top-scroll");
+    const topScrollInner = document.getElementById("definition-table-top-scroll-inner");
+    const tableWrap = document.getElementById("definition-table-wrap");
+    const table = document.getElementById("definition-table");
+
+    if (!topScroll || !topScrollInner || !tableWrap || !table) return;
+
+    let syncLocked = false;
+
+    const syncScrollWidth = () => {
+      const scrollWidth = table.scrollWidth;
+      topScrollInner.style.width = `${scrollWidth}px`;
+      topScroll.hidden = scrollWidth <= tableWrap.clientWidth + 1;
+      if (topScroll.hidden) {
+        topScroll.scrollLeft = 0;
+      } else {
+        topScroll.scrollLeft = tableWrap.scrollLeft;
+      }
+    };
+
+    topScroll.addEventListener("scroll", () => {
+      if (syncLocked) return;
+      syncLocked = true;
+      tableWrap.scrollLeft = topScroll.scrollLeft;
+      syncLocked = false;
+    }, { passive: true });
+
+    tableWrap.addEventListener("scroll", () => {
+      if (syncLocked) return;
+      syncLocked = true;
+      topScroll.scrollLeft = tableWrap.scrollLeft;
+      syncLocked = false;
+    }, { passive: true });
+
+    window.addEventListener("resize", syncScrollWidth);
+    if ("ResizeObserver" in window) {
+      const observer = new ResizeObserver(syncScrollWidth);
+      observer.observe(tableWrap);
+      observer.observe(table);
+    }
+
+    syncScrollWidth();
+  })();
+
   (function () {
     const nameInput = document.getElementById('kpi_name');
     const slugOutput = document.getElementById('derived_slug');
@@ -281,14 +411,10 @@
       emptyMessage: 'No metric matches found.',
       errorMessage: 'Metric search failed. Try again.',
       foundMessage: (definitions) => `${definitions.length} metric match(es) found.`,
-      fetchResults: async (query, signal) => {
-        const response = await fetch(`{{ url_for("lineage.search_kpis") }}?q=${encodeURIComponent(query)}`, {
-          signal,
-          headers: { "Accept": "application/json" }
-        });
-        const payload = await response.json();
-        return payload.results || [];
-      },
+      fetchResults: (query, signal) => window.fetchLookupResults(
+        `{{ url_for("lineage.search_kpis") }}?q=${encodeURIComponent(query)}`,
+        signal,
+      ),
       primaryText: (item) => item.kpi_name,
       secondaryText: (item) => `${item.kpi_id} | ${item.kpi_slug} | v${item.kpi_version}`,
       inputValue: (item) => item.kpi_name,

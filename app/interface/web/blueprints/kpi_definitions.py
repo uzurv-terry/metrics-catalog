@@ -3,6 +3,7 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from app.application.dto.catalog_note_dto import CatalogNoteDTO
 from app.application.dto.kpi_definition_dto import KpiDefinitionDTO
 from app.domain.exceptions import ConflictError, DomainError, ValidationError
+from app.interface.web.backend_errors import flash_backend_error, is_backend_error
 from app.interface.web.forms.catalog_note_form import CatalogNoteForm
 from app.interface.web.forms.kpi_definition_form import KpiDefinitionForm
 
@@ -66,7 +67,13 @@ def list_definitions():
     edit_definition = None
 
     if request.method == "GET" and edit_slug and edit_version is not None:
-        edit_definition = service.get_by_key(edit_slug, edit_version)
+        try:
+            edit_definition = service.get_by_key(edit_slug, edit_version)
+        except Exception as exc:
+            if not is_backend_error(exc):
+                raise
+            flash_backend_error("Loading the metric definition", exc)
+            return redirect(url_for("kpi_definitions.list_definitions"))
         if edit_definition is None:
             flash("Metric definition not found", "error")
             return redirect(url_for("kpi_definitions.list_definitions"))
@@ -94,8 +101,21 @@ def list_definitions():
             flash(str(exc), "error")
         except DomainError as exc:
             flash(f"Domain error: {exc}", "error")
+        except Exception as exc:
+            if not is_backend_error(exc):
+                raise
+            flash_backend_error(
+                "Updating the metric definition" if is_update else "Saving the metric definition",
+                exc,
+            )
 
-    definitions = service.list_recent_summary(limit=DEFINITION_LIST_LIMIT)
+    try:
+        definitions = service.list_recent_summary(limit=DEFINITION_LIST_LIMIT)
+    except Exception as exc:
+        if not is_backend_error(exc):
+            raise
+        flash_backend_error("Loading metric definitions", exc)
+        definitions = []
     return render_template(
         "kpi_definition_list.html",
         definitions=definitions,
@@ -127,16 +147,30 @@ def metric_overview():
             flash("Metric version must be a valid number", "error")
             return redirect(url_for("kpi_definitions.metric_overview"))
 
-        definition = definition_service.get_by_key(kpi_slug, kpi_version)
+        try:
+            definition = definition_service.get_by_key(kpi_slug, kpi_version)
+        except Exception as exc:
+            if not is_backend_error(exc):
+                raise
+            flash_backend_error("Loading the metric definition", exc)
+            return redirect(url_for("kpi_definitions.metric_overview"))
         if definition is None:
             flash("Metric definition not found", "error")
             return redirect(url_for("kpi_definitions.metric_overview"))
 
-        usage_rows = usage_service.list_by_metric(kpi_slug, kpi_version)
-        metric_notes = note_service.list_by_metric(kpi_slug, kpi_version)
-        report_notes_by_report = note_service.list_by_report_ids(
-            [usage.report_id for usage in usage_rows if usage.report_id]
-        )
+        try:
+            usage_rows = usage_service.list_by_metric(kpi_slug, kpi_version)
+            metric_notes = note_service.list_by_metric(kpi_slug, kpi_version)
+            report_notes_by_report = note_service.list_by_report_ids(
+                [usage.report_id for usage in usage_rows if usage.report_id]
+            )
+        except Exception as exc:
+            if not is_backend_error(exc):
+                raise
+            flash_backend_error("Loading metric overview details", exc)
+            usage_rows = []
+            metric_notes = []
+            report_notes_by_report = {}
         selected_metric = {"kpi_slug": kpi_slug, "kpi_version": kpi_version}
         note_form.note_scope.data = "metric_definition"
         note_form.kpi_id.data = definition.kpi_id
@@ -162,6 +196,10 @@ def metric_overview():
                 flash(str(exc), "error")
             except DomainError as exc:
                 flash(f"Domain error: {exc}", "error")
+            except Exception as exc:
+                if not is_backend_error(exc):
+                    raise
+                flash_backend_error("Saving the metric note", exc)
 
     return render_template(
         "metric_overview.html",

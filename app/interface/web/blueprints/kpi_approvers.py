@@ -2,6 +2,7 @@ from flask import Blueprint, current_app, flash, redirect, render_template, url_
 
 from app.application.dto.kpi_approver_dto import KpiApproverDTO
 from app.domain.exceptions import ConflictError, DomainError, ValidationError
+from app.interface.web.backend_errors import flash_backend_error, is_backend_error
 from app.interface.web.forms.kpi_approver_form import KpiApproverForm
 
 bp = Blueprint("kpi_approvers", __name__, url_prefix="/kpi-approvers")
@@ -35,8 +36,18 @@ def list_approvers():
             flash(str(exc), "error")
         except DomainError as exc:
             flash(f"Domain error: {exc}", "error")
+        except Exception as exc:
+            if not is_backend_error(exc):
+                raise
+            flash_backend_error("Saving the metric approver", exc)
 
-    approvers = service.list_recent_summary(limit=APPROVER_LIST_LIMIT)
+    try:
+        approvers = service.list_recent_summary(limit=APPROVER_LIST_LIMIT)
+    except Exception as exc:
+        if not is_backend_error(exc):
+            raise
+        flash_backend_error("Loading metric approvers", exc)
+        approvers = []
     return render_template(
         "kpi_approver_list.html",
         approvers=approvers,

@@ -59,17 +59,23 @@
           </tr>
         </thead>
         <tbody>
-          {% for report in reports %}
+          {% if reports %}
+            {% for report in reports %}
+            <tr>
+              <td>{{ report.report_id }}</td>
+              <td>{{ report.report_name }}</td>
+              <td>{{ report.consumer_tool }}</td>
+              <td>{{ report.report_type }}</td>
+              <td>{{ report.status }}</td>
+              <td>{{ report.created_at }}</td>
+              <td><a href="{{ url_for('reports.edit_report', report_id=report.report_id) }}">Edit / Notes</a></td>
+            </tr>
+            {% endfor %}
+          {% else %}
           <tr>
-            <td>{{ report.report_id }}</td>
-            <td>{{ report.report_name }}</td>
-            <td>{{ report.consumer_tool }}</td>
-            <td>{{ report.report_type }}</td>
-            <td>{{ report.status }}</td>
-            <td>{{ report.created_at }}</td>
-            <td><a href="{{ url_for('reports.edit_report', report_id=report.report_id) }}">Edit / Notes</a></td>
+            <td colspan="7" class="small">No reports available to display.</td>
           </tr>
-          {% endfor %}
+          {% endif %}
         </tbody>
       </table>
     </div>
